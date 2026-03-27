@@ -1,0 +1,15 @@
+{
+    "_comment": "Options shared across multiple forms (gender, age group, etc.)",
+
+    "gender": [
+        { "key": "male", "label": "Male" },
+        { "key": "female", "label": "Female" },
+        { "key": "nonBinary", "label": "Non-Binary" }
+    ],
+    "age_group": [
+        { "key": "lessThan18", "label": "Under 18" },
+        { "key": "from18to25", "label": "18 to 25" },
+        { "key": "from26to39", "label": "26 to 39" },
+        { "key": "over40", "label": "Over 40" }
+    ]
+}

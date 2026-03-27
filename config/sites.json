@@ -1,0 +1,8 @@
+[
+    { "key": "townHall", "label": "Town Hall" },
+    { "key": "darlingHarbour", "label": "Darling Harbour" },
+    { "key": "kingsCross", "label": "Kings Cross" },
+    { "key": "theRocks", "label": "The Rocks" },
+    { "key": "wollongongMall", "label": "Wollongong Mall" },
+    { "key": "santaFestNGH", "label": "Santa Fest NGH" }
+]

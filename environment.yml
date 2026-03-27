@@ -1,0 +1,24 @@
+name: streetkind-ai
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    # Web framework
+    - fastapi==0.115.0
+    - uvicorn[standard]==0.30.0
+    # AI / LLM
+    - anthropic==0.52.0
+    # Structured output / validation
+    - pydantic==2.11.1
+    # Firebase
+    - firebase-admin==6.6.0
+    # Speech-to-text (offline fallback)
+    - openai-whisper==20240930
+    # Environment
+    - python-dotenv==1.1.0
+    # Testing
+    - pytest==8.3.5
+    - httpx==0.28.0

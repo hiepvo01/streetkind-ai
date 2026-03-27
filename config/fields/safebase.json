@@ -1,0 +1,12 @@
+{
+    "_comment": "Field options specific to the SafeBase form",
+
+    "assistance_rendered": [
+        { "key": "directions", "label": "Requested Directions", "icon": "map outline" },
+        { "key": "bus", "label": "Bus Information", "icon": "bus" },
+        { "key": "train", "label": "Train Information", "icon": "train" },
+        { "key": "taxi", "label": "Taxi Information", "icon": "taxi" },
+        { "key": "deviceCharge", "label": "Charged Devices", "icon": "lightning" },
+        { "key": "familyReconnect", "label": "Family Reconnect", "icon": "phone" }
+    ]
+}

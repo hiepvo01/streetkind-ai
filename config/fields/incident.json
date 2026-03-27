@@ -1,0 +1,25 @@
+{
+    "_comment": "Field options specific to the Incident Report form",
+
+    "encountered_by": [
+        { "key": "tkAmbassador", "label": "TK Ambassador" },
+        { "key": "cctv", "label": "CCTV" },
+        { "key": "self", "label": "Self" },
+        { "key": "friend", "label": "Friend" },
+        { "key": "generalPublic", "label": "General Public" },
+        { "key": "venueSecurity", "label": "Venue Security" },
+        { "key": "transportStaff", "label": "Transport Staff" },
+        { "key": "police", "label": "Police" },
+        { "key": "fireRescue", "label": "Fire & Rescue" },
+        { "key": "rangers", "label": "Rangers" },
+        { "key": "ambulance", "label": "Ambulance" }
+    ],
+    "other_services": [
+        { "key": "police", "label": "Police" },
+        { "key": "ambulance", "label": "Ambulance" },
+        { "key": "fireRescue", "label": "Fire & Rescue" },
+        { "key": "cctv", "label": "CCTV" },
+        { "key": "rangers", "label": "Rangers" },
+        { "key": "venueSecurity", "label": "Venue Security" }
+    ]
+}

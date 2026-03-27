@@ -1,0 +1,22 @@
+[
+    {
+        "key": "incident",
+        "label": "Incident Report",
+        "icon": "edit",
+        "description": "Record a street incident with client details",
+        "firebase_path": "incidentForms",
+        "schema_name": "incident",
+        "schema_version": 1,
+        "default_status": "draft"
+    },
+    {
+        "key": "safebase",
+        "label": "SafeBase Form",
+        "icon": "shield alternate",
+        "description": "Log people entering the safe space and assistance provided",
+        "firebase_path": "safeSpaceForms",
+        "schema_name": "safespace",
+        "schema_version": 1,
+        "default_status": null
+    }
+]

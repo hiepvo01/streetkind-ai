@@ -1,0 +1,19 @@
+{
+    "app_name": "Streetkind AI",
+    "app_subtitle": "Voice-powered form filling",
+    "organisation_name": "Streetkind",
+    "default_site": "townHall",
+    "default_form_type": "incident",
+    "speech_recognition": {
+        "language": "en-AU",
+        "continuous": true,
+        "interim_results": true
+    },
+    "ai": {
+        "default_model": "claude-haiku-4-5-20251001",
+        "max_tokens": 1024
+    },
+    "whisper": {
+        "default_model": "base"
+    }
+}

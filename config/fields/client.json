@@ -1,0 +1,96 @@
+{
+    "_comment": "Field options specific to the Client form (Phase 2 - used within incidents)",
+
+    "intoxication_signs": [
+        { "key": "speech", "label": "Speech" },
+        { "key": "balance", "label": "Balance" },
+        { "key": "coordination", "label": "Co-ordination" },
+        { "key": "behaviour", "label": "Behaviour" },
+        { "key": "notVisible", "label": "Not Visible" }
+    ],
+    "drug_use_signs": [
+        { "key": "observed", "label": "Observed" },
+        { "key": "visibleSigns", "label": "Visible Signs" },
+        { "key": "disclosed", "label": "Disclosed" },
+        { "key": "notVisible", "label": "Not Visible" }
+    ],
+    "offensive_conduct": [
+        { "key": "offensiveBehaviour", "label": "Offensive Behaviour" },
+        { "key": "offensiveLanguage", "label": "Offensive Language" },
+        { "key": "obstruction", "label": "Obstruction" },
+        { "key": "publicDrinking", "label": "Public Drinking" },
+        { "key": "notVisible", "label": "Not Visible" }
+    ],
+    "self_harm_signs": [
+        { "key": "visibleSigns", "label": "Visible Signs" },
+        { "key": "disclosed", "label": "Disclosed" },
+        { "key": "notVisible", "label": "Not Visible" }
+    ],
+    "suicidal_signs": [
+        { "key": "ideationObserved", "label": "Ideation Observed" },
+        { "key": "ideationDisclosed", "label": "Ideation Disclosed" },
+        { "key": "attemptObserved", "label": "Attempt Observed" },
+        { "key": "attemptDisclosed", "label": "Attempt Disclosed" },
+        { "key": "notVisible", "label": "Not Visible" }
+    ],
+    "assault_indicators": [
+        { "key": "observed", "label": "Observed" },
+        { "key": "visibleSigns", "label": "Visible Signs" },
+        { "key": "disclosed", "label": "Disclosed" },
+        { "key": "notVisible", "label": "Not Visible" }
+    ],
+    "reconnection": [
+        { "key": "telephone", "label": "Telephone" },
+        { "key": "person", "label": "In Person" },
+        { "key": "socialNetwork", "label": "Social Network" }
+    ],
+    "directions": [
+        { "key": "venue", "label": "Venue" },
+        { "key": "accommodation", "label": "Accommodation" },
+        { "key": "other", "label": "Other" }
+    ],
+    "transport_information": [
+        { "key": "bus", "label": "Bus" },
+        { "key": "train", "label": "Train" },
+        { "key": "taxi", "label": "Taxi" },
+        { "key": "uber", "label": "Uber" },
+        { "key": "other", "label": "Other" }
+    ],
+    "escorted_to": [
+        { "key": "accommodation", "label": "Accommodation" },
+        { "key": "transport", "label": "Transport" },
+        { "key": "friends", "label": "Friends" },
+        { "key": "other", "label": "Other" }
+    ],
+    "basic_aid": [
+        { "key": "vomitBag", "label": "Vomit Bag" },
+        { "key": "water", "label": "Water" },
+        { "key": "footwear", "label": "Footwear" },
+        { "key": "lollipop", "label": "Lollipop" }
+    ],
+    "additional_aid": [
+        { "key": "firstAid", "label": "First Aid" },
+        { "key": "mentalHealthAid", "label": "Mental Health Aid" }
+    ],
+    "emergency_services": [
+        { "key": "ambulanceServiceCalled", "label": "Ambulance" },
+        { "key": "policeServiceCalled", "label": "Police" },
+        { "key": "fireServiceCalled", "label": "Fire & Rescue" }
+    ],
+    "service_referrals": [
+        { "key": "alcoholDrugInfoService", "label": "Alcohol & Drug Info Service" },
+        { "key": "beyondBlue", "label": "Beyond Blue" },
+        { "key": "childProtectionServices", "label": "Child Protection Services (FACS)" },
+        { "key": "dvLine", "label": "DV Line" },
+        { "key": "hospital", "label": "Hospital" },
+        { "key": "lifeline", "label": "Lifeline" },
+        { "key": "link2home", "label": "Link2Home" },
+        { "key": "salvosStreetLevel", "label": "Salvos Street Level" },
+        { "key": "streetbeatBus", "label": "Streetbeat Bus (Weave)" },
+        { "key": "traffickingSlaveryAFP", "label": "Trafficking & Slavery (AFP)" }
+    ],
+    "other_support": [
+        { "key": "welfareCheck", "label": "Welfare Check" },
+        { "key": "homelessSupport", "label": "Homeless Support" }
+    ]
+}
