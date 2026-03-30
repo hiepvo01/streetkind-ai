@@ -2,8 +2,6 @@ import React from 'react';
 import { Menu, Icon, Image } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
-import streetKindLogo from '../../assets/street-kind-logo-black.svg';
-
 const MenuBar = ({ appName, onToggleSidebar }) => {
     return (
         <Menu size='huge' attached='top'>
@@ -12,7 +10,7 @@ const MenuBar = ({ appName, onToggleSidebar }) => {
             </Menu.Item>
             <Menu.Item style={{ margin: '0 auto' }}>
                 <Image
-                    src={streetKindLogo}
+                    src='/street-kind-logo-black.svg'
                     size='tiny'
                     centered
                     style={{ marginTop: 8 }}

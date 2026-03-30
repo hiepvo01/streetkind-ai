@@ -7,9 +7,10 @@ dist/
 build/
 .pytest_cache/
 
-# Environment
+# Environment & secrets
 .env
 firebase-service-account.json
+streetkind-app-dev-firebase-adminsdk*.json
 
 # Frontend
 frontend/node_modules/
@@ -18,3 +19,6 @@ frontend/build/
 # IDE
 .vscode/
 .idea/
+
+# Superpowers docs (generated)
+docs/superpowers/

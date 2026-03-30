@@ -18,6 +18,7 @@ Config structure:
             client.json       - Client-specific field options (Phase 2)
 """
 
+import copy
 import json
 from pathlib import Path
 from functools import lru_cache
@@ -28,19 +29,27 @@ FIELDS_DIR = CONFIG_DIR / "fields"
 
 @lru_cache()
 def _load_json(path: str) -> dict | list:
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise RuntimeError(f"Config file not found: {path}")
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON in {path}: {e}")
 
 
 def load_json(filename: str) -> dict | list:
-    return _load_json(str(CONFIG_DIR / filename))
+    return copy.deepcopy(_load_json(str(CONFIG_DIR / filename)))
 
 
 def load_prompt(filename: str, **kwargs) -> str:
     """Load a prompt template and fill in placeholders from config."""
     path = CONFIG_DIR / "prompts" / filename
-    with open(path, "r", encoding="utf-8") as f:
-        template = f.read()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            template = f.read()
+    except FileNotFoundError:
+        raise RuntimeError(f"Prompt file not found: {path}")
     return template.format(**kwargs)
 
 
@@ -72,24 +81,24 @@ def get_form_type_config(form_type_key: str) -> dict | None:
 # ── Field options (per-form) ─────────────────────────────────────────
 
 def get_shared_fields() -> dict:
-    return _load_json(str(FIELDS_DIR / "shared.json"))
+    data = copy.deepcopy(_load_json(str(FIELDS_DIR / "shared.json")))
+    data.pop("_comment", None)
+    return data
 
 
 def get_form_fields(form_type_key: str) -> dict:
     """
     Return merged field options for a form: shared options + form-specific options.
     """
-    shared = dict(get_shared_fields())
-    # Remove _comment keys
-    shared.pop("_comment", None)
+    merged = get_shared_fields()
 
     form_path = FIELDS_DIR / f"{form_type_key}.json"
     if form_path.exists():
-        form_specific = dict(_load_json(str(form_path)))
+        form_specific = copy.deepcopy(_load_json(str(form_path)))
         form_specific.pop("_comment", None)
-        shared.update(form_specific)
+        merged.update(form_specific)
 
-    return shared
+    return merged
 
 
 def get_all_form_fields() -> dict:
@@ -103,12 +112,7 @@ def get_all_form_fields() -> dict:
     # Also include client fields for future use
     client_path = FIELDS_DIR / "client.json"
     if client_path.exists():
-        client_fields = dict(_load_json(str(client_path)))
-        client_fields.pop("_comment", None)
-        shared = dict(get_shared_fields())
-        shared.pop("_comment", None)
-        shared.update(client_fields)
-        result["client"] = shared
+        result["client"] = get_form_fields("client")
     return result
 
 

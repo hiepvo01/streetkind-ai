@@ -13,10 +13,9 @@ import EncounteredBySection from './EncounteredBySection';
 import OtherServicesSection from './OtherServicesSection';
 
 // ---------------------------------------------------------------------------
-// Blank client factory — mirrors ClientFormSchema defaults from client_schema.py
+// Blank client factory — mirrors ClientFormSchema defaults
 // ---------------------------------------------------------------------------
 const createBlankClient = () => ({
-  // Section 1: Client Info
   firstName: '',
   lastName: '',
   gender: '',
@@ -25,8 +24,6 @@ const createBlankClient = () => ({
   contactNumber: '',
   suburb: '',
   alone: false,
-
-  // Section 1: Risk Assessment
   intoxicationSigns: { speech: false, balance: false, coordination: false, behaviour: false, notVisible: false },
   drugUseSigns: { observed: false, visibleSigns: false, disclosed: false, notVisible: false },
   offensiveConduct: { offensiveBehaviour: false, offensiveLanguage: false, obstruction: false, publicDrinking: false, notVisible: false },
@@ -35,91 +32,77 @@ const createBlankClient = () => ({
   sexualAssault: { observed: false, visibleSigns: false, disclosed: false, notVisible: false },
   physicalAssault: { observed: false, visibleSigns: false, disclosed: false, notVisible: false },
   domesticViolence: { observed: false, visibleSigns: false, disclosed: false, notVisible: false },
-
-  // Section 2: Basic Support
   reconnection: { telephone: false, person: false, socialNetwork: false },
   directions: { venue: false, accommodation: false, other: false },
   transportInformation: { bus: false, train: false, taxi: false, uber: false, other: false },
   escortedTo: { accommodation: false, transport: false, friends: false, other: false },
   safeSpace: { escortedTo: false, soberedUp: false },
-
-  // Section 3: Health Support
   basicAid: { vomitBag: false, water: false, footwear: false, lollipop: false },
   additionalAid: { firstAid: false, mentalHealthAid: false },
   emergencyServicesCalled: { ambulanceServiceCalled: false, policeServiceCalled: false, fireServiceCalled: false },
-
-  // Section 4: Risk Minimization
   physicalAssaultRisk: 0,
   sexualAssaultRisk: 0,
   clientConsciousness: 0,
   clientValuablesVisibility: 0,
   clientLostProperty: 0,
   injury: { roadRelated: false, other: false },
-
-  // Section 5: Services Referred
   clientServiceReferrals: {
-    alcoholDrugInfoService: false,
-    beyondBlue: false,
-    childProtectionServices: false,
-    dvLine: false,
-    hospital: false,
-    lifeline: false,
-    link2home: false,
-    salvosStreetLevel: false,
-    streetbeatBus: false,
-    traffickingSlaveryAFP: false,
+    alcoholDrugInfoService: false, beyondBlue: false, childProtectionServices: false,
+    dvLine: false, hospital: false, lifeline: false, link2home: false,
+    salvosStreetLevel: false, streetbeatBus: false, traffickingSlaveryAFP: false,
   },
   serviceInformation: { contactedService: false, infoProvided: false },
   otherSupport: { welfareCheck: false, homelessSupport: false },
 });
 
 // ---------------------------------------------------------------------------
-// IncidentForm
+// IncidentForm — matches SKSSIR IncidentForm.js field names exactly
 // ---------------------------------------------------------------------------
 const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
-  // --- Incident-level field handlers ---
-  const handleIncidentChange = (field, value) => {
-    onChange({ ...data, incident: { ...data.incident, [field]: value } });
+  // data = { incident: {...}, clients: [...] }
+  const incident = data.incident || {};
+  const clients = data.clients || [];
+  const location = incident.location || {};
+  const encounteredBy = incident.encounteredBy || {};
+  const otherServicesInvolved = incident.otherServicesInvolved || {};
+
+  const handleIncidentField = (field, value) => {
+    onChange({ ...data, incident: { ...incident, [field]: value } });
   };
 
-  // --- Encountered-by handler ---
-  const handleEncounteredByChange = (updatedEncounteredBy) => {
+  const handleLocationChange = (value) => {
     onChange({
       ...data,
-      incident: { ...data.incident, encounteredBy: updatedEncounteredBy },
+      incident: { ...incident, location: { ...location, address: value } },
     });
   };
 
-  // --- Other-services handler ---
-  const handleOtherServicesChange = (updatedOtherServices) => {
-    onChange({
-      ...data,
-      incident: { ...data.incident, otherServices: updatedOtherServices },
-    });
+  const handleEncounteredByChange = (updated) => {
+    onChange({ ...data, incident: { ...incident, encounteredBy: updated } });
   };
 
-  // --- Client handlers ---
+  const handleOtherServicesChange = (updated) => {
+    onChange({ ...data, incident: { ...incident, otherServicesInvolved: updated } });
+  };
+
   const handleClientChange = (index, updatedClient) => {
-    const updatedClients = data.clients.map((c, i) =>
-      i === index ? updatedClient : c
-    );
+    const updatedClients = clients.map((c, i) => (i === index ? updatedClient : c));
     onChange({ ...data, clients: updatedClients });
   };
 
-  const addBlankClient = () => {
-    onChange({ ...data, clients: [...data.clients, createBlankClient()] });
+  const handleRemoveClient = (index) => {
+    onChange({ ...data, clients: clients.filter((_, i) => i !== index) });
   };
 
-  // --- Site options for dropdown ---
+  const addBlankClient = () => {
+    onChange({ ...data, clients: [...clients, createBlankClient()] });
+  };
+
   const siteOptions = (sites || []).map((s) => ({
     key: s.key,
     value: s.key,
     text: s.label,
   }));
-
-  const incident = data.incident || {};
-  const encounteredBy = incident.encounteredBy || {};
-  const otherServices = incident.otherServices || {};
 
   return (
     <Grid container stackable>
@@ -127,48 +110,30 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
         <Grid.Column>
           <Header as="h2">Incident Details</Header>
           <Form size="large">
-            {/* Row 1: Team Leader, Site, Location */}
             <Form.Group widths={3}>
               <Form.Input
                 label="Team Leader Name"
                 placeholder="Team leader name"
                 value={incident.teamLeaderName || ''}
-                onChange={(e, { value }) => handleIncidentChange('teamLeaderName', value)}
+                onChange={(e, { value }) => handleIncidentField('teamLeaderName', value)}
               />
               <Form.Select
                 label="Base Site"
                 placeholder="Select site"
                 options={siteOptions}
-                value={incident.baseSite || ''}
-                onChange={(e, { value }) => handleIncidentChange('baseSite', value)}
+                value={incident.site || ''}
+                onChange={(e, { value }) => handleIncidentField('site', value)}
               />
               <Form.Input
                 label="Location / Address"
                 placeholder="Location or address"
-                value={incident.location || ''}
-                onChange={(e, { value }) => handleIncidentChange('location', value)}
-              />
-            </Form.Group>
-
-            {/* Row 2: Start and End Times */}
-            <Form.Group widths={2}>
-              <Form.Input
-                label="Incident Start Time"
-                type="datetime-local"
-                value={incident.startTime || ''}
-                onChange={(e, { value }) => handleIncidentChange('startTime', value)}
-              />
-              <Form.Input
-                label="Incident End Time"
-                type="datetime-local"
-                value={incident.endTime || ''}
-                onChange={(e, { value }) => handleIncidentChange('endTime', value)}
+                value={location.address || ''}
+                onChange={(e, { value }) => handleLocationChange(value)}
               />
             </Form.Group>
 
             <Divider />
 
-            {/* Encountered By */}
             <Form.Field>
               <label style={{ fontWeight: 'bold', fontSize: '1em' }}>Incident Referred By</label>
             </Form.Field>
@@ -180,22 +145,33 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
 
             <Divider />
 
-            {/* Other Services */}
             <Form.Field>
               <label style={{ fontWeight: 'bold', fontSize: '1em' }}>Other Services Referred</label>
             </Form.Field>
             <OtherServicesSection
-              data={otherServices}
+              data={otherServicesInvolved}
               onChange={handleOtherServicesChange}
               options={fieldOptions.other_services || []}
             />
 
             <Divider />
 
-            {/* Clients */}
-            <Header as="h2">Clients</Header>
-            {(data.clients || []).map((client, i) => (
-              <Segment key={i} color="blue">
+            <Header as="h2">
+              Clients ({clients.length})
+            </Header>
+            {clients.map((client, i) => (
+              <Segment key={i} color="blue" raised>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5em' }}>
+                  <Header as="h3" style={{ margin: 0 }}>Client {i + 1}</Header>
+                  <Button
+                    color="red"
+                    size="mini"
+                    icon="trash"
+                    content="Remove"
+                    type="button"
+                    onClick={() => handleRemoveClient(i)}
+                  />
+                </div>
                 <ClientForm
                   data={client}
                   onChange={(updatedClient) => handleClientChange(i, updatedClient)}
@@ -207,27 +183,28 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
             <Button
               color="blue"
               icon="add user"
+              labelPosition="left"
               content="Add Client"
               onClick={addBlankClient}
               type="button"
+              style={{ marginTop: '0.5em' }}
             />
 
             <Divider />
 
-            {/* Description and Outcome */}
             <Form.TextArea
               label="Incident Description"
               placeholder="Describe what happened..."
               rows={8}
-              value={incident.description || ''}
-              onChange={(e, { value }) => handleIncidentChange('description', value)}
+              value={incident.incidentDescription || ''}
+              onChange={(e, { value }) => handleIncidentField('incidentDescription', value)}
             />
             <Form.TextArea
               label="Incident Outcome"
               placeholder="Describe the outcome..."
               rows={8}
-              value={incident.outcome || ''}
-              onChange={(e, { value }) => handleIncidentChange('outcome', value)}
+              value={incident.incidentOutcome || ''}
+              onChange={(e, { value }) => handleIncidentField('incidentOutcome', value)}
             />
           </Form>
         </Grid.Column>
@@ -238,17 +215,12 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
 
 IncidentForm.propTypes = {
   data: PropTypes.shape({
-    incident: PropTypes.object.isRequired,
-    clients: PropTypes.arrayOf(PropTypes.object).isRequired,
+    incident: PropTypes.object,
+    clients: PropTypes.arrayOf(PropTypes.object),
   }).isRequired,
   onChange: PropTypes.func.isRequired,
   fieldOptions: PropTypes.object.isRequired,
-  sites: PropTypes.arrayOf(
-    PropTypes.shape({
-      key: PropTypes.string.isRequired,
-      label: PropTypes.string.isRequired,
-    })
-  ).isRequired,
+  sites: PropTypes.array.isRequired,
 };
 
 export default IncidentForm;
