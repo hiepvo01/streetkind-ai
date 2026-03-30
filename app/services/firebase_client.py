@@ -120,3 +120,11 @@ def push_incident_form(data: dict, user_uid: str) -> str:
 
 def push_safebase_form(data: dict, user_uid: str) -> str:
     return _push_form("safebase", data, user_uid)
+
+
+def get_dashboard_stats() -> dict:
+    """Fetch cached dashboard statistics from Firebase."""
+    _init_firebase()
+    ref = db.reference("dashboardInfoStats")
+    data = ref.get()
+    return data or {}

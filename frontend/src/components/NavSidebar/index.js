@@ -2,7 +2,10 @@ import React from 'react';
 import { Menu, Sidebar, Icon } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
-const NavSidebar = ({ visible, onToggle, formTypes, activeFormType, onSelectFormType }) => {
+const NavSidebar = ({
+    visible, onToggle, formTypes, activeFormType,
+    onSelectFormType, currentView, onShowDashboard,
+}) => {
     return (
         <Sidebar
             as={Menu}
@@ -13,11 +16,19 @@ const NavSidebar = ({ visible, onToggle, formTypes, activeFormType, onSelectForm
             vertical
             inverted
         >
+            <Menu.Item
+                name='dashboard'
+                active={currentView === 'dashboard'}
+                onClick={() => { onToggle(); onShowDashboard(); }}
+            >
+                <Icon name='home' />
+                Dashboard
+            </Menu.Item>
             {formTypes.map((ft) => (
                 <Menu.Item
                     key={ft.key}
                     name={ft.key}
-                    active={activeFormType === ft.key}
+                    active={currentView === 'forms' && activeFormType === ft.key}
                     onClick={() => { onToggle(); onSelectFormType(ft.key); }}
                 >
                     <Icon name={ft.icon} />
@@ -38,6 +49,8 @@ NavSidebar.propTypes = {
     formTypes: PropTypes.array.isRequired,
     activeFormType: PropTypes.string,
     onSelectFormType: PropTypes.func.isRequired,
+    currentView: PropTypes.string.isRequired,
+    onShowDashboard: PropTypes.func.isRequired,
 };
 
 export default NavSidebar;

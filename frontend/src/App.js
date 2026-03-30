@@ -7,17 +7,18 @@ import NavSidebar from './components/NavSidebar';
 import FormSelector from './components/FormSelector';
 import VoiceInput from './components/VoiceInput';
 import FormPreview from './components/FormPreview';
+import Dashboard from './components/Dashboard';
 
 const App = () => {
     const [config, setConfig] = useState(null);
     const [sidebarVisible, setSidebarVisible] = useState(false);
+    const [currentView, setCurrentView] = useState('forms'); // 'forms' or 'dashboard'
     const [formType, setFormType] = useState(null);
     const [site, setSite] = useState(null);
     const [transcript, setTranscript] = useState('');
     const [extractedData, setExtractedData] = useState(null);
     const [submitted, setSubmitted] = useState(false);
 
-    // Load config from backend on mount
     useEffect(() => {
         fetchConfig().then((cfg) => {
             setConfig(cfg);
@@ -32,6 +33,16 @@ const App = () => {
         setTranscript('');
         setExtractedData(null);
         setSubmitted(false);
+    };
+
+    const handleSelectFormType = (type) => {
+        setCurrentView('forms');
+        setFormType(type);
+        handleReset();
+    };
+
+    const handleShowDashboard = () => {
+        setCurrentView('dashboard');
     };
 
     if (!config) {
@@ -53,40 +64,48 @@ const App = () => {
                     visible={sidebarVisible}
                     onToggle={toggleSidebar}
                     formTypes={config.form_types}
-                    activeFormType={formType}
-                    onSelectFormType={(type) => { setFormType(type); handleReset(); }}
+                    activeFormType={currentView === 'forms' ? formType : null}
+                    onSelectFormType={handleSelectFormType}
+                    currentView={currentView}
+                    onShowDashboard={handleShowDashboard}
                 />
                 <Sidebar.Pusher>
                     <div className='main-content'>
-                        <FormSelector
-                            appName={config.app_name}
-                            appSubtitle={config.app_subtitle}
-                            formTypes={config.form_types}
-                            activeFormType={formType}
-                            onSelectFormType={(type) => { setFormType(type); handleReset(); }}
-                            sites={config.sites}
-                            activeSite={site}
-                            onSelectSite={setSite}
-                        />
-                        <VoiceInput
-                            speechConfig={config.speech_recognition}
-                            transcript={transcript}
-                            onTranscriptChange={setTranscript}
-                            formType={formType}
-                            site={site}
-                            onExtracted={setExtractedData}
-                            submitted={submitted}
-                        />
-                        {extractedData && !submitted && (
-                            <FormPreview
-                                formType={formType}
-                                data={extractedData}
-                                onDataChange={setExtractedData}
-                                onSubmitted={() => setSubmitted(true)}
-                                onReset={handleReset}
-                                fieldOptions={config.field_options}
-                                sites={config.sites}
-                            />
+                        {currentView === 'dashboard' ? (
+                            <Dashboard />
+                        ) : (
+                            <>
+                                <FormSelector
+                                    appName={config.app_name}
+                                    appSubtitle={config.app_subtitle}
+                                    formTypes={config.form_types}
+                                    activeFormType={formType}
+                                    onSelectFormType={handleSelectFormType}
+                                    sites={config.sites}
+                                    activeSite={site}
+                                    onSelectSite={setSite}
+                                />
+                                <VoiceInput
+                                    speechConfig={config.speech_recognition}
+                                    transcript={transcript}
+                                    onTranscriptChange={setTranscript}
+                                    formType={formType}
+                                    site={site}
+                                    onExtracted={setExtractedData}
+                                    submitted={submitted}
+                                />
+                                {extractedData && !submitted && (
+                                    <FormPreview
+                                        formType={formType}
+                                        data={extractedData}
+                                        onDataChange={setExtractedData}
+                                        onSubmitted={() => setSubmitted(true)}
+                                        onReset={handleReset}
+                                        fieldOptions={config.field_options}
+                                        sites={config.sites}
+                                    />
+                                )}
+                            </>
                         )}
                     </div>
                 </Sidebar.Pusher>

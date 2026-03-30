@@ -52,6 +52,14 @@ def get_config():
     }
 
 
+@router.get("/api/dashboard")
+def get_dashboard():
+    """Returns dashboard impact statistics from Firebase."""
+    from .services.firebase_client import get_dashboard_stats
+    stats = get_dashboard_stats()
+    return stats
+
+
 @router.get("/api/health")
 def health():
     return {"status": "ok"}
