@@ -22,3 +22,8 @@ frontend/build/
 
 # Superpowers docs (generated)
 docs/superpowers/
+
+# Test artifacts
+*.png
+*.jpg
+.playwright-mcp/
