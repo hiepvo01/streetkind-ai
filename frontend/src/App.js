@@ -84,6 +84,8 @@ const App = () => {
                                 onDataChange={setExtractedData}
                                 onSubmitted={() => setSubmitted(true)}
                                 onReset={handleReset}
+                                fieldOptions={config.field_options}
+                                sites={config.sites}
                             />
                         )}
                     </div>

@@ -1,39 +1,32 @@
 import React, { useState } from 'react';
 import {
+    Accordion,
+    Button,
     Container,
     Grid,
-    Segment,
-    Button,
     Header,
-    Message,
     Icon,
+    Message,
+    Segment,
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
 import { submitForm } from '../../services/api';
+import IncidentForm from '../forms/IncidentForm';
+import SafeBaseForm from '../forms/SafeBaseForm';
 
-const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset }) => {
+const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, fieldOptions, sites }) => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
-    const [editableJson, setEditableJson] = useState(JSON.stringify(data, null, 2));
+    const [accordionActive, setAccordionActive] = useState(false);
 
     const handleSubmit = async () => {
-        // Parse the potentially edited JSON
-        let parsedData;
-        try {
-            parsedData = JSON.parse(editableJson);
-        } catch (e) {
-            setError('The edited JSON is invalid. Please fix it or start over.');
-            return;
-        }
-
         setSubmitting(true);
         setError(null);
 
         try {
             // TODO: In production, user_uid comes from Firebase Auth session
-            await submitForm(formType, parsedData, 'demo-user');
-            onDataChange(parsedData);
+            await submitForm(formType, data, 'demo-user');
             onSubmitted();
         } catch (e) {
             setError('Submit failed: ' + e.message);
@@ -58,40 +51,70 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset }) => 
                                 </Header.Content>
                             </Header>
 
+                            <Message warning icon size='small'>
+                                <Icon name='user outline' />
+                                <Message.Content>
+                                    Demo mode: submissions use a placeholder user ID.
+                                </Message.Content>
+                            </Message>
+
                             {error && (
                                 <Message error content={error} onDismiss={() => setError(null)} />
                             )}
 
-                            <Segment className='form-preview-json'>
-                                <pre
-                                    contentEditable
-                                    suppressContentEditableWarning
-                                    onBlur={(e) => setEditableJson(e.target.innerText)}
-                                    style={{ outline: 'none', minHeight: '200px' }}
-                                >
-                                    {JSON.stringify(data, null, 2)}
-                                </pre>
-                            </Segment>
+                            {formType === 'incident' && (
+                                <IncidentForm
+                                    data={data}
+                                    onChange={onDataChange}
+                                    fieldOptions={{ ...(fieldOptions.incident || {}), ...(fieldOptions.client || {}) }}
+                                    sites={sites}
+                                />
+                            )}
 
-                            <Button
-                                color='green'
-                                size='large'
-                                onClick={handleSubmit}
-                                disabled={submitting}
-                                loading={submitting}
-                                icon='check'
-                                labelPosition='left'
-                                content='Confirm & Submit'
-                            />
-                            <Button
-                                color='red'
-                                size='large'
-                                onClick={onReset}
-                                disabled={submitting}
-                                icon='undo alternate'
-                                labelPosition='left'
-                                content='Start Over'
-                            />
+                            {formType === 'safebase' && (
+                                <SafeBaseForm
+                                    data={data}
+                                    onChange={onDataChange}
+                                    fieldOptions={fieldOptions.safebase || []}
+                                />
+                            )}
+
+                            <Accordion style={{ marginTop: '1rem' }}>
+                                <Accordion.Title
+                                    active={accordionActive}
+                                    onClick={() => setAccordionActive(!accordionActive)}
+                                >
+                                    <Icon name='dropdown' />
+                                    Raw JSON (debug)
+                                </Accordion.Title>
+                                <Accordion.Content active={accordionActive}>
+                                    <pre style={{ fontSize: '0.8rem', maxHeight: '300px', overflow: 'auto' }}>
+                                        {JSON.stringify(data, null, 2)}
+                                    </pre>
+                                </Accordion.Content>
+                            </Accordion>
+
+                            <div style={{ marginTop: '1rem' }}>
+                                <Button
+                                    color='green'
+                                    size='large'
+                                    onClick={handleSubmit}
+                                    disabled={submitting}
+                                    loading={submitting}
+                                    icon='check'
+                                    labelPosition='left'
+                                    content='Confirm & Submit'
+                                />
+                                <Button
+                                    color='red'
+                                    size='large'
+                                    onClick={onReset}
+                                    disabled={submitting}
+                                    icon='undo alternate'
+                                    labelPosition='left'
+                                    content='Start Over'
+                                />
+                            </div>
                         </Segment>
                     </Grid.Column>
                 </Grid.Row>
@@ -106,6 +129,8 @@ FormPreview.propTypes = {
     onDataChange: PropTypes.func.isRequired,
     onSubmitted: PropTypes.func.isRequired,
     onReset: PropTypes.func.isRequired,
+    fieldOptions: PropTypes.object.isRequired,
+    sites: PropTypes.array.isRequired,
 };
 
 export default FormPreview;
