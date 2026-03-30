@@ -2,6 +2,18 @@
     height: 100%;
 }
 
+/* ── Global responsive container ───────────────────────────────── */
+body {
+    overflow-x: hidden;
+}
+
+.main-content {
+    min-height: calc(100vh - 59px);
+    padding: 0 1rem;
+    overflow-x: hidden;
+}
+
+/* ── Spacing utilities (match SKSSIR) ──────────────────────────── */
 .paddingTop {
     padding-top: 30px;
 }
@@ -14,7 +26,7 @@
     padding-top: 1em;
 }
 
-/* Voice button */
+/* ── Voice button ──────────────────────────────────────────────── */
 .mic-button {
     transition: all 0.3s ease;
 }
@@ -31,7 +43,7 @@
     100% { box-shadow: 0 0 0 0 rgba(219, 40, 40, 0); }
 }
 
-/* Form preview */
+/* ── Form preview ──────────────────────────────────────────────── */
 .form-preview-json {
     max-height: 400px;
     overflow-y: auto;
@@ -41,7 +53,54 @@
     word-wrap: break-word;
 }
 
-/* Main content area below fixed menu */
-.main-content {
-    min-height: calc(100vh - 59px);
+/* ── Responsive tweaks ─────────────────────────────────────────── */
+
+/* Phone: stack everything, full width */
+@media only screen and (max-width: 767px) {
+    .main-content {
+        padding: 0 0.5rem;
+    }
+
+    .ui.container {
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    /* Client form tabs scroll horizontally on small screens */
+    .ui.pointing.secondary.menu {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .ui.pointing.secondary.menu .item {
+        flex-shrink: 0;
+        font-size: 0.85em;
+    }
+
+    /* Make form buttons stack */
+    .ui.buttons,
+    .ui.button.group {
+        flex-wrap: wrap;
+    }
+
+    .ui.segment {
+        padding: 0.8em !important;
+    }
+}
+
+/* Tablet */
+@media only screen and (min-width: 768px) and (max-width: 991px) {
+    .main-content {
+        padding: 0 1rem;
+    }
+}
+
+/* Desktop */
+@media only screen and (min-width: 992px) {
+    .main-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
 }

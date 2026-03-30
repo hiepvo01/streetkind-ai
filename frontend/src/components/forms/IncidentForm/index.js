@@ -4,7 +4,6 @@ import {
   Button,
   Divider,
   Form,
-  Grid,
   Header,
   Segment,
 } from 'semantic-ui-react';
@@ -105,12 +104,10 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   }));
 
   return (
-    <Grid container stackable>
-      <Grid.Row>
-        <Grid.Column>
-          <Header as="h2">Incident Details</Header>
-          <Form size="large">
-            <Form.Group widths={3}>
+    <div>
+      <Header as="h2">Incident Details</Header>
+      <Form size="large">
+        <Form.Group widths="equal">
               <Form.Input
                 label="Team Leader Name"
                 placeholder="Team leader name"
@@ -206,10 +203,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               value={incident.incidentOutcome || ''}
               onChange={(e, { value }) => handleIncidentField('incidentOutcome', value)}
             />
-          </Form>
-        </Grid.Column>
-      </Grid.Row>
-    </Grid>
+      </Form>
+    </div>
   );
 };
 
