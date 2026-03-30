@@ -9,12 +9,18 @@ All prompts and config are loaded from config/ files - not hardcoded here.
 import os
 import anthropic
 from ..config import get_app_config, get_incident_prompt, get_safebase_prompt
-from ..schemas.incident_schema import IncidentFormSchema
+from ..schemas.combined_incident_schema import CombinedIncidentSchema
 from ..schemas.safebase_schema import SafeBaseFormSchema
+
+# Singleton client - reuses HTTP connection pool across requests
+_client = None
 
 
 def _get_client():
-    return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    return _client
 
 
 def _get_model() -> str:
@@ -49,9 +55,9 @@ def extract_incident(transcript: str, site: str = "") -> dict:
     client = _get_client()
 
     tool = _build_tool(
-        name="fill_incident_form",
-        description="Fill in the incident report form with structured data extracted from the volunteer's spoken description.",
-        schema_class=IncidentFormSchema,
+        name="fill_incident_report",
+        description="Fill in the incident report including details about each client/person helped",
+        schema_class=CombinedIncidentSchema,
     )
 
     response = client.messages.create(
@@ -59,7 +65,7 @@ def extract_incident(transcript: str, site: str = "") -> dict:
         max_tokens=_get_max_tokens(),
         system=get_incident_prompt(),
         tools=[tool],
-        tool_choice={"type": "tool", "name": "fill_incident_form"},
+        tool_choice={"type": "tool", "name": "fill_incident_report"},
         messages=[
             {
                 "role": "user",
@@ -72,7 +78,7 @@ def extract_incident(transcript: str, site: str = "") -> dict:
     )
 
     raw_input = _extract_tool_input(response)
-    validated = IncidentFormSchema(**raw_input)
+    validated = CombinedIncidentSchema(**raw_input)
     return validated.model_dump(by_alias=True)
 
 
@@ -105,4 +111,4 @@ def extract_safebase(transcript: str, site: str = "") -> dict:
 
     raw_input = _extract_tool_input(response)
     validated = SafeBaseFormSchema(**raw_input)
-    return validated.model_dump()
+    return validated.model_dump(by_alias=True)

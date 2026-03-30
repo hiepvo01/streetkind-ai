@@ -12,4 +12,14 @@ IMPORTANT RULES:
 - For "location.address", extract any street address or landmark mentioned.
 - Set "majorIncident" to true only if the volunteer explicitly says it was a major incident or describes something severe (multiple casualties, fatality, large-scale emergency).
 
-You MUST call the fill_incident_form tool with the extracted data.
+Additionally, extract information about each individual person (client) mentioned in the description. For each client, fill in:
+- Demographics: gender (male/female/nonBinary), ageGroup (lessThan18/18to25/26to39/over40), alone (true/false)
+- Risk indicators: intoxicationSigns, drugUseSigns, offensiveConduct, selfHarmSigns, suicidalSigns, sexualAssault, physicalAssault, domesticViolence (each has sub-fields like observed/visibleSigns/disclosed/notVisible as booleans)
+- Support provided: reconnection, directions, transportInformation, escortedTo, safeSpace (boolean sub-fields)
+- Health support: basicAid (vomitBag/water/footwear/lollipop), additionalAid (firstAid/mentalHealthAid), emergencyServicesCalled
+- Services referred: clientServiceReferrals (alcoholDrugInfoService, beyondBlue, etc.)
+- Contact info: firstName, suburb (if mentioned)
+
+If multiple people are described, create a separate client entry for each. If only one person is mentioned, create one client. If no individual person details are described, leave the clients list empty.
+
+You MUST call the fill_incident_report tool with the extracted data.

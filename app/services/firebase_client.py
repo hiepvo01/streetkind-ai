@@ -68,7 +68,54 @@ def _push_form(form_type_key: str, data: dict, user_uid: str) -> str:
 
 
 def push_incident_form(data: dict, user_uid: str) -> str:
-    return _push_form("incident", data, user_uid)
+    """Push incident + clients to Firebase matching SKSSIR flow."""
+    _init_firebase()
+
+    incident_data = data.get("incident", data)
+    clients_data = data.get("clients", [])
+
+    ft = get_form_type_config("incident")
+    now = int(time.time() * 1000)
+
+    # Write incident
+    incident_data.update({
+        "createdBy": user_uid,
+        "createdDate": now,
+        "startTime": incident_data.get("startTime", now),
+        "endTime": incident_data.get("endTime", now),
+        "schemaName": ft["schema_name"],
+        "schemaVersion": ft["schema_version"],
+        "status": "completed",
+        "editedBy": "",
+        "editedDate": "",
+        "clientList": [],
+        "teamMembersInvolved": [],
+    })
+
+    incident_ref = db.reference(ft["firebase_path"]).push(incident_data)
+    incident_id = incident_ref.key
+
+    # Write each client
+    client_ids = []
+    for client_data in clients_data:
+        client_data.update({
+            "createdBy": user_uid,
+            "createdDate": now,
+            "incidentId": incident_id,
+            "site": incident_data.get("site", ""),
+            "schemaName": "client",
+            "schemaVersion": 1,
+            "editedBy": "",
+            "editedDate": "",
+        })
+        client_ref = db.reference("clients").push(client_data)
+        client_ids.append(client_ref.key)
+
+    # Update incident's clientList
+    if client_ids:
+        db.reference(f"{ft['firebase_path']}/{incident_id}/clientList").set(client_ids)
+
+    return incident_id
 
 
 def push_safebase_form(data: dict, user_uid: str) -> str:
