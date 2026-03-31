@@ -1,0 +1,72 @@
+Streetkind AI - Demo Accounts
+==============================
+
+These accounts are created in Firebase Auth for the streetkind-app-dev project.
+
+Email                       Password         Role            Site
+--------------------------  ---------------  --------------  ----------------
+admin@streetkind.demo       streetkind123    administrator   Town Hall
+leader@streetkind.demo      streetkind123    teamLeader      Town Hall
+volunteer@streetkind.demo   streetkind123    teamMember      Darling Harbour
+
+Login at: http://localhost:3000
+
+---
+
+Migrating Users from Old Firebase Project (tk-foundation)
+=========================================================
+
+The original SKSSIR app used Firebase project "tk-foundation" which has 66
+registered users with email/password authentication. The database (RTDB) was
+migrated to "streetkind-app-dev" but the Firebase Auth user accounts were NOT
+migrated. This means the 66 original users cannot log in to the new project.
+
+To migrate the auth accounts:
+
+Prerequisites:
+- Firebase CLI installed: npm install -g firebase-tools
+- CLI access to BOTH projects (tk-foundation and streetkind-app-dev)
+
+Step 1: Login to Firebase CLI
+  firebase login
+
+Step 2: Export users from the OLD project
+  firebase auth:export users.json --project tk-foundation
+
+  This creates a users.json file containing all user records including
+  password hashes. The file will include UIDs, emails, and encrypted passwords.
+
+Step 3: Import users into the NEW project
+  firebase auth:import users.json --project streetkind-app-dev \
+    --hash-algo=SCRYPT \
+    --hash-key=<base64_signer_key> \
+    --salt-separator=<base64_salt_separator> \
+    --rounds=8 \
+    --mem-cost=14
+
+  The hash parameters (hash-key, salt-separator, rounds, mem-cost) are shown
+  during the export step. Copy them exactly.
+
+Step 4: Verify
+  firebase auth:export verify.json --project streetkind-app-dev
+
+  Check that all 66 users appear in the new project.
+
+After migration, all original SKSSIR users will be able to log in to
+Streetkind AI with their existing email and password. Their UIDs will match
+the records in the RTDB users/ node.
+
+Alternative: If you don't have access to tk-foundation
+===========================================================
+
+If you cannot access the old project via Firebase CLI, you can:
+
+1. Create new user accounts manually in the Firebase Console:
+   https://console.firebase.google.com/u/1/project/streetkind-app-dev/authentication/users
+
+2. Or use the Firebase Admin SDK to create users programmatically:
+
+   python create_users.py
+
+   Where create_users.py reads from the RTDB users/ node and creates
+   Firebase Auth accounts with temporary passwords that users must reset.
