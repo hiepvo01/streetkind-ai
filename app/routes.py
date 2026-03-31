@@ -60,6 +60,16 @@ def get_dashboard():
     return stats
 
 
+@router.get("/api/user/{uid}")
+def get_user_profile(uid: str):
+    """Fetch user profile from RTDB."""
+    from .services.firebase_client import get_user_profile
+    profile = get_user_profile(uid)
+    if not profile:
+        raise HTTPException(404, detail="User not found")
+    return profile
+
+
 @router.get("/api/health")
 def health():
     return {"status": "ok"}
