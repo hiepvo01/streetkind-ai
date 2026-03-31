@@ -2,7 +2,11 @@ import React from 'react';
 import { Menu, Icon, Image } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
+import { useAuth } from '../../context/AuthContext';
+
 const MenuBar = ({ appName, onToggleSidebar }) => {
+    const { profile } = useAuth();
+
     return (
         <Menu size='huge' attached='top'>
             <Menu.Item onClick={onToggleSidebar}>
@@ -17,8 +21,8 @@ const MenuBar = ({ appName, onToggleSidebar }) => {
                 />
             </Menu.Item>
             <Menu.Item position='right'>
-                <Icon name='microphone' color='blue' />
-                {appName}
+                <Icon name='user circle outline' color='blue' />
+                {profile?.firstName || 'User'}
             </Menu.Item>
         </Menu>
     );

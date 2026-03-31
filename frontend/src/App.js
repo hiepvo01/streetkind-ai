@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar, Loader, Segment } from 'semantic-ui-react';
 
 import { fetchConfig } from './services/api';
+import { useAuth } from './context/AuthContext';
 import MenuBar from './components/MenuBar';
 import NavSidebar from './components/NavSidebar';
 import FormSelector from './components/FormSelector';
 import VoiceInput from './components/VoiceInput';
 import FormPreview from './components/FormPreview';
 import Dashboard from './components/Dashboard';
+import Login from './components/Login';
 
 const App = () => {
+    const { user, loading } = useAuth();
     const [config, setConfig] = useState(null);
     const [sidebarVisible, setSidebarVisible] = useState(false);
     const [currentView, setCurrentView] = useState('forms'); // 'forms' or 'dashboard'
@@ -44,6 +47,18 @@ const App = () => {
     const handleShowDashboard = () => {
         setCurrentView('dashboard');
     };
+
+    if (loading) {
+        return (
+            <Segment basic style={{ minHeight: '100vh' }}>
+                <Loader active size='large' content='Loading...' />
+            </Segment>
+        );
+    }
+
+    if (!user) {
+        return <Login />;
+    }
 
     if (!config) {
         return (

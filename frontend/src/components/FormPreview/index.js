@@ -12,10 +12,12 @@ import {
 import PropTypes from 'prop-types';
 
 import { submitForm } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import IncidentForm from '../forms/IncidentForm';
 import SafeBaseForm from '../forms/SafeBaseForm';
 
 const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, fieldOptions, sites }) => {
+    const { user } = useAuth();
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
@@ -25,8 +27,7 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
         setError(null);
 
         try {
-            // TODO: In production, user_uid comes from Firebase Auth session
-            await submitForm(formType, data, 'demo-user');
+            await submitForm(formType, data, user.uid);
             onSubmitted();
         } catch (e) {
             setError('Submit failed: ' + e.message);
@@ -50,13 +51,6 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
                                     </Header.Subheader>
                                 </Header.Content>
                             </Header>
-
-                            <Message warning icon size='small'>
-                                <Icon name='user outline' />
-                                <Message.Content>
-                                    Demo mode: submissions use a placeholder user ID.
-                                </Message.Content>
-                            </Message>
 
                             {error && (
                                 <Message error content={error} onDismiss={() => setError(null)} />

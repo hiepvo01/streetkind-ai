@@ -2,10 +2,14 @@ import React from 'react';
 import { Menu, Sidebar, Icon } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
+import { useAuth } from '../../context/AuthContext';
+
 const NavSidebar = ({
     visible, onToggle, formTypes, activeFormType,
     onSelectFormType, currentView, onShowDashboard,
 }) => {
+    const { profile, logout } = useAuth();
+
     return (
         <Sidebar
             as={Menu}
@@ -16,6 +20,12 @@ const NavSidebar = ({
             vertical
             inverted
         >
+            {profile?.firstName && (
+                <Menu.Item header>
+                    <Icon name='user circle' />
+                    {profile.firstName}
+                </Menu.Item>
+            )}
             <Menu.Item
                 name='dashboard'
                 active={currentView === 'dashboard'}
@@ -38,6 +48,10 @@ const NavSidebar = ({
             <Menu.Item name='about' onClick={onToggle}>
                 <Icon name='info' />
                 About
+            </Menu.Item>
+            <Menu.Item name='logout' onClick={() => { logout(); onToggle(); }}>
+                <Icon name='sign out' />
+                Log out
             </Menu.Item>
         </Sidebar>
     );
