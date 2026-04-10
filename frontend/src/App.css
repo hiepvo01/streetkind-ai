@@ -101,4 +101,12 @@ body {
     .main-content {
         padding: 0 3rem;
     }
+
+    /* Override Semantic UI Container max-width to use full screen */
+    .main-content .ui.container {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
 }
