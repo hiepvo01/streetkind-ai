@@ -62,7 +62,7 @@ cd frontend && npm install && cd ..
 ### Running
 
 ```bash
-# Terminal 1: Backend (port 5000)
+# Terminal 1: Backend (port 8000)
 conda activate streetkind-ai
 python run.py
 
@@ -72,7 +72,7 @@ cd frontend && npm start
 
 Open http://localhost:3000 in **Chrome** (required for Web Speech API).
 
-FastAPI docs: http://localhost:5000/docs
+FastAPI docs: http://localhost:8000/docs
 
 ### Demo Accounts
 

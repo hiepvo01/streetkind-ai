@@ -110,7 +110,7 @@ class TestIncidentSubmission:
     def test_submit_incident_writes_to_firebase(self, fb_db, cleanup_keys):
         """Submit an incident via the API, verify it in Firebase, then clean up."""
         resp = requests.post(
-            "http://localhost:5000/api/submit",
+            "http://localhost:8000/api/submit",
             json={
                 "form_type": "incident",
                 "form_data": SAMPLE_INCIDENT_DATA,

@@ -24,7 +24,7 @@ class TestSafeBaseSubmission:
     def test_submit_safebase_writes_to_firebase(self, fb_db, cleanup_keys):
         """Submit a SafeBase form via the API and verify it in Firebase."""
         resp = requests.post(
-            "http://localhost:5000/api/submit",
+            "http://localhost:8000/api/submit",
             json={
                 "form_type": "safebase",
                 "form_data": SAMPLE_SAFEBASE_DATA,

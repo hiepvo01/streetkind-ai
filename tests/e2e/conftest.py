@@ -2,7 +2,7 @@
 Shared fixtures and helpers for Playwright E2E tests.
 
 Requires both servers running:
-  - Backend  (FastAPI)  on http://localhost:5000
+  - Backend  (FastAPI)  on http://localhost:8000
   - Frontend (React)    on http://localhost:3000
 """
 
