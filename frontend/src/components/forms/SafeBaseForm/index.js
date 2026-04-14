@@ -5,6 +5,12 @@ import PeopleCountSection from './PeopleCountSection';
 import AssistanceSection from './AssistanceSection';
 
 const SafeBaseForm = ({ data, onChange, fieldOptions }) => {
+  // GET /api/config returns field_options.safebase as a merged object (e.g. assistance_rendered: [...]).
+  // AssistanceSection expects an array and calls .map() on it — pass that array, not the whole object.
+  const assistanceFieldOptions = Array.isArray(fieldOptions)
+    ? fieldOptions
+    : fieldOptions?.assistance_rendered ?? [];
+
   const handlePeopleCountChange = (gender, ageGroup, value) => {
     onChange({
       ...data,
@@ -49,7 +55,7 @@ const SafeBaseForm = ({ data, onChange, fieldOptions }) => {
       <AssistanceSection
         data={data.assistanceRendered || {}}
         onChange={handleAssistanceChange}
-        fieldOptions={fieldOptions}
+        fieldOptions={assistanceFieldOptions}
       />
     </div>
   );
@@ -64,13 +70,16 @@ SafeBaseForm.propTypes = {
     assistanceRendered: PropTypes.object,
   }).isRequired,
   onChange: PropTypes.func.isRequired,
-  fieldOptions: PropTypes.arrayOf(
-    PropTypes.shape({
-      key: PropTypes.string.isRequired,
-      label: PropTypes.string.isRequired,
-      icon: PropTypes.string,
-    })
-  ).isRequired,
+  fieldOptions: PropTypes.oneOfType([
+    PropTypes.arrayOf(
+      PropTypes.shape({
+        key: PropTypes.string.isRequired,
+        label: PropTypes.string.isRequired,
+        icon: PropTypes.string,
+      })
+    ),
+    PropTypes.object,
+  ]).isRequired,
 };
 
 export default SafeBaseForm;

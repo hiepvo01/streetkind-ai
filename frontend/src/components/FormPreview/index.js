@@ -69,7 +69,7 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
                                 <SafeBaseForm
                                     data={data}
                                     onChange={onDataChange}
-                                    fieldOptions={fieldOptions.safebase || []}
+                                    fieldOptions={fieldOptions.safebase || {}}
                                 />
                             )}
 
