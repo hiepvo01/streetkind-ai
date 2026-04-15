@@ -8,9 +8,10 @@ const ROLE_CONFIG = {
     teamMember: { icon: 'user', color: 'teal' },
 };
 
-const MemberCard = ({ member, onClick }) => {
+const MemberCard = ({ member, onClick, formatSite }) => {
     const cfg = ROLE_CONFIG[member.userLevel] || ROLE_CONFIG.teamMember;
     const fullName = [member.firstName, member.lastName].filter(Boolean).join(' ') || 'Unknown';
+    const siteLabel = formatSite ? formatSite(member.site) : member.site;
 
     return (
         <Grid.Column mobile={8} tablet={5} computer={4} style={{ marginBottom: '1em' }}>
@@ -26,7 +27,7 @@ const MemberCard = ({ member, onClick }) => {
                 </div>
                 {member.site && (
                     <div style={{ color: '#888', fontSize: '0.85em', marginTop: '0.3em' }}>
-                        {member.site}
+                        {siteLabel}
                     </div>
                 )}
             </Segment>
@@ -43,6 +44,7 @@ MemberCard.propTypes = {
         site: PropTypes.string,
     }).isRequired,
     onClick: PropTypes.func.isRequired,
+    formatSite: PropTypes.func,
 };
 
 export default MemberCard;

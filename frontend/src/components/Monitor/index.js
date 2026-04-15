@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Breadcrumb,
     Container,
@@ -11,6 +11,7 @@ import {
     Message,
     Segment,
 } from 'semantic-ui-react';
+import PropTypes from 'prop-types';
 
 import { useAuth } from '../../context/AuthContext';
 import { fetchTeam, fetchMonitorForms } from '../../services/api';
@@ -23,8 +24,16 @@ const ROLE_LABELS = {
     teamMember: 'Team Member',
 };
 
-const Monitor = () => {
+const Monitor = ({ sites = [] }) => {
     const { user, profile } = useAuth();
+
+    const siteMap = useMemo(() => {
+        const map = {};
+        sites.forEach((s) => { map[s.key] = s.label; });
+        return map;
+    }, [sites]);
+
+    const formatSite = (siteKey) => siteMap[siteKey] || siteKey;
 
     const [breadcrumb, setBreadcrumb] = useState([]);
     const [teamData, setTeamData] = useState(null);
@@ -146,7 +155,7 @@ const Monitor = () => {
                                     {viewedUser.site && (
                                         <Label size='small' style={{ marginTop: '0.4em' }}>
                                             <Icon name='map marker alternate' />
-                                            {viewedUser.site}
+                                            {formatSite(viewedUser.site)}
                                         </Label>
                                     )}
                                 </Header.Subheader>
@@ -154,42 +163,58 @@ const Monitor = () => {
                         </Header>
                     </Segment>
 
-                    {/* Team Leaders section */}
-                    {teamData.teamLeaders?.length > 0 && (
+                    {/* Team Leaders section (admins only) */}
+                    {viewedUser.userLevel === 'administrator' && (
                         <>
                             <Header as='h3'>
                                 <Icon name='users' />
                                 Team Leaders
                             </Header>
-                            <Grid stackable>
-                                {teamData.teamLeaders.map((tl) => (
-                                    <MemberCard
-                                        key={tl.uid}
-                                        member={tl}
-                                        onClick={handleCardClick}
-                                    />
-                                ))}
-                            </Grid>
+                            {teamData.teamLeaders?.length > 0 ? (
+                                <Grid stackable>
+                                    {teamData.teamLeaders.map((tl) => (
+                                        <MemberCard
+                                            key={tl.uid}
+                                            member={tl}
+                                            onClick={handleCardClick}
+                                            formatSite={formatSite}
+                                        />
+                                    ))}
+                                </Grid>
+                            ) : (
+                                <Message info>
+                                    <Icon name='info circle' />
+                                    No team leaders assigned yet.
+                                </Message>
+                            )}
                             <Divider />
                         </>
                     )}
 
-                    {/* Team Members section */}
-                    {teamData.teamMembers?.length > 0 && (
+                    {/* Team Members section (admins and team leaders) */}
+                    {(viewedUser.userLevel === 'administrator' || viewedUser.userLevel === 'teamLeader') && (
                         <>
                             <Header as='h3'>
                                 <Icon name='user' />
                                 Team Members
                             </Header>
-                            <Grid stackable>
-                                {teamData.teamMembers.map((tm) => (
-                                    <MemberCard
-                                        key={tm.uid}
-                                        member={tm}
-                                        onClick={handleCardClick}
-                                    />
-                                ))}
-                            </Grid>
+                            {teamData.teamMembers?.length > 0 ? (
+                                <Grid stackable>
+                                    {teamData.teamMembers.map((tm) => (
+                                        <MemberCard
+                                            key={tm.uid}
+                                            member={tm}
+                                            onClick={handleCardClick}
+                                            formatSite={formatSite}
+                                        />
+                                    ))}
+                                </Grid>
+                            ) : (
+                                <Message info>
+                                    <Icon name='info circle' />
+                                    No team members assigned yet.
+                                </Message>
+                            )}
                             <Divider />
                         </>
                     )}
@@ -203,12 +228,17 @@ const Monitor = () => {
                         <FormList
                             incidents={formsData.incidents || []}
                             safebaseForms={formsData.safebaseForms || []}
+                            formatSite={formatSite}
                         />
                     )}
                 </>
             )}
         </Container>
     );
+};
+
+Monitor.propTypes = {
+    sites: PropTypes.array,
 };
 
 export default Monitor;

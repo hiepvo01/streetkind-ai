@@ -95,7 +95,7 @@ const App = () => {
                         {currentView === 'dashboard' ? (
                             <Dashboard />
                         ) : currentView === 'monitor' ? (
-                            <Monitor />
+                            <Monitor sites={config.sites} />
                         ) : (
                             <>
                                 <FormSelector

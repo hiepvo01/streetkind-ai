@@ -16,7 +16,8 @@ const truncate = (text, maxLen = 80) => {
     return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
 };
 
-const FormList = ({ incidents, safebaseForms }) => {
+const FormList = ({ incidents, safebaseForms, formatSite }) => {
+    const displaySite = (siteKey) => formatSite ? formatSite(siteKey) : (siteKey || '—');
     const hasData = incidents.length > 0 || safebaseForms.length > 0;
 
     if (!hasData) {
@@ -52,7 +53,7 @@ const FormList = ({ incidents, safebaseForms }) => {
                                     .map((inc) => (
                                         <Table.Row key={inc.id}>
                                             <Table.Cell>{formatDate(inc.createdDate)}</Table.Cell>
-                                            <Table.Cell>{inc.site || '—'}</Table.Cell>
+                                            <Table.Cell>{displaySite(inc.site)}</Table.Cell>
                                             <Table.Cell>{truncate(inc.incidentDescription)}</Table.Cell>
                                             <Table.Cell>
                                                 <Label
@@ -90,7 +91,7 @@ const FormList = ({ incidents, safebaseForms }) => {
                                     .map((form) => (
                                         <Table.Row key={form.id}>
                                             <Table.Cell>{formatDate(form.createdDate)}</Table.Cell>
-                                            <Table.Cell>{form.site || '—'}</Table.Cell>
+                                            <Table.Cell>{displaySite(form.site)}</Table.Cell>
                                         </Table.Row>
                                     ))}
                             </Table.Body>
@@ -105,6 +106,7 @@ const FormList = ({ incidents, safebaseForms }) => {
 FormList.propTypes = {
     incidents: PropTypes.array.isRequired,
     safebaseForms: PropTypes.array.isRequired,
+    formatSite: PropTypes.func,
 };
 
 export default FormList;
