@@ -1,7 +1,8 @@
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from .auth import get_current_uid
 from .config import get_sites, get_form_types, get_all_form_fields, get_app_config
 from .services.ai_extractor import extract_incident, extract_safebase
 from .services.firebase_client import push_incident_form, push_safebase_form
@@ -68,6 +69,23 @@ def get_user_profile(uid: str):
     if not profile:
         raise HTTPException(404, detail="User not found")
     return profile
+
+
+@router.get("/api/me")
+def me(uid: str = Depends(get_current_uid)):
+    """Return the authenticated user's own profile including role."""
+    from .services.firebase_client import get_user_profile
+    profile = get_user_profile(uid)
+    if not profile:
+        raise HTTPException(404, detail="User not found")
+    return {
+        "uid": uid,
+        "firstName": profile.get("firstName", ""),
+        "lastName": profile.get("lastName", ""),
+        "userLevel": profile.get("userLevel", ""),
+        "site": profile.get("site", ""),
+        "accountStatus": profile.get("accountStatus", ""),
+    }
 
 
 @router.get("/api/health")
