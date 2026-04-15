@@ -140,6 +140,22 @@ def get_team(uid: str, caller_uid: str = Depends(get_current_uid)):
     }
 
 
+@router.get("/api/monitor/{uid}/forms")
+def get_monitor_forms(uid: str, caller_uid: str = Depends(get_current_uid)):
+    """
+    Return incidentForms and safeSpaceForms created by the given user.
+    The caller must be the user themselves or an ancestor in the hierarchy.
+    """
+    from .services.firebase_client import get_all_users, is_ancestor, get_forms_by_user
+
+    all_users = get_all_users()
+
+    if not is_ancestor(caller_uid, uid, all_users):
+        raise HTTPException(403, detail="Access denied: user is outside your hierarchy")
+
+    return get_forms_by_user(uid)
+
+
 @router.get("/api/health")
 def health():
     return {"status": "ok"}

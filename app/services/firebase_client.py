@@ -136,6 +136,57 @@ def get_dashboard_stats() -> dict:
     return data or {}
 
 
+# ── Form queries ─────────────────────────────────────────────────────
+
+
+def get_forms_by_user(uid: str) -> dict:
+    """
+    Return incidentForms and safeSpaceForms created by the given user.
+    Uses orderByChild("createdBy") so RTDB .indexOn is recommended.
+    """
+    _init_firebase()
+
+    incidents_raw = (
+        db.reference("incidentForms")
+        .order_by_child("createdBy")
+        .equal_to(uid)
+        .get()
+    ) or {}
+
+    safebase_raw = (
+        db.reference("safeSpaceForms")
+        .order_by_child("createdBy")
+        .equal_to(uid)
+        .get()
+    ) or {}
+
+    def _summarise_incident(form_id: str, d: dict) -> dict:
+        return {
+            "id": form_id,
+            "site": d.get("site", ""),
+            "incidentDescription": d.get("incidentDescription", ""),
+            "status": d.get("status", ""),
+            "createdDate": d.get("createdDate"),
+            "teamLeaderName": d.get("teamLeaderName", ""),
+        }
+
+    def _summarise_safebase(form_id: str, d: dict) -> dict:
+        return {
+            "id": form_id,
+            "site": d.get("site", ""),
+            "createdDate": d.get("createdDate"),
+        }
+
+    return {
+        "incidents": [
+            _summarise_incident(fid, data) for fid, data in incidents_raw.items()
+        ],
+        "safebaseForms": [
+            _summarise_safebase(fid, data) for fid, data in safebase_raw.items()
+        ],
+    }
+
+
 # ── Hierarchy helpers ────────────────────────────────────────────────
 
 
