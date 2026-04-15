@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const NavSidebar = ({
     visible, onToggle, formTypes, activeFormType,
-    onSelectFormType, currentView, onShowDashboard,
+    onSelectFormType, currentView, onShowDashboard, onShowMonitor,
 }) => {
     const { profile, logout } = useAuth();
 
@@ -45,6 +45,14 @@ const NavSidebar = ({
                     {ft.label}
                 </Menu.Item>
             ))}
+            <Menu.Item
+                name='monitor'
+                active={currentView === 'monitor'}
+                onClick={() => { onToggle(); onShowMonitor(); }}
+            >
+                <Icon name='sitemap' />
+                Monitor
+            </Menu.Item>
             <Menu.Item name='about' onClick={onToggle}>
                 <Icon name='info' />
                 About
@@ -65,6 +73,7 @@ NavSidebar.propTypes = {
     onSelectFormType: PropTypes.func.isRequired,
     currentView: PropTypes.string.isRequired,
     onShowDashboard: PropTypes.func.isRequired,
+    onShowMonitor: PropTypes.func.isRequired,
 };
 
 export default NavSidebar;

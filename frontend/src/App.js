@@ -9,13 +9,14 @@ import FormSelector from './components/FormSelector';
 import VoiceInput from './components/VoiceInput';
 import FormPreview from './components/FormPreview';
 import Dashboard from './components/Dashboard';
+import Monitor from './components/Monitor';
 import Login from './components/Login';
 
 const App = () => {
     const { user, loading } = useAuth();
     const [config, setConfig] = useState(null);
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    const [currentView, setCurrentView] = useState('forms'); // 'forms' or 'dashboard'
+    const [currentView, setCurrentView] = useState('forms'); // 'forms', 'dashboard', or 'monitor'
     const [formType, setFormType] = useState(null);
     const [site, setSite] = useState(null);
     const [transcript, setTranscript] = useState('');
@@ -46,6 +47,10 @@ const App = () => {
 
     const handleShowDashboard = () => {
         setCurrentView('dashboard');
+    };
+
+    const handleShowMonitor = () => {
+        setCurrentView('monitor');
     };
 
     if (loading) {
@@ -83,11 +88,14 @@ const App = () => {
                     onSelectFormType={handleSelectFormType}
                     currentView={currentView}
                     onShowDashboard={handleShowDashboard}
+                    onShowMonitor={handleShowMonitor}
                 />
                 <Sidebar.Pusher>
                     <div className='main-content'>
                         {currentView === 'dashboard' ? (
                             <Dashboard />
+                        ) : currentView === 'monitor' ? (
+                            <Monitor />
                         ) : (
                             <>
                                 <FormSelector
