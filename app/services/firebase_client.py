@@ -134,3 +134,57 @@ def get_dashboard_stats() -> dict:
     ref = db.reference("dashboardInfoStats")
     data = ref.get()
     return data or {}
+
+
+# ── Hierarchy helpers ────────────────────────────────────────────────
+
+
+def get_all_users() -> dict[str, dict]:
+    """Return every user node as {uid: profile_dict}."""
+    _init_firebase()
+    data = db.reference("users").get()
+    return data or {}
+
+
+def get_direct_reports(uid: str, all_users: dict[str, dict] | None = None) -> list[dict]:
+    """
+    Return users whose createdBy == uid (i.e. the people this user created).
+    Each item includes the subordinate's uid for convenience.
+    """
+    if all_users is None:
+        all_users = get_all_users()
+
+    reports = []
+    for user_uid, profile in all_users.items():
+        if profile.get("createdBy") == uid:
+            reports.append({"uid": user_uid, **profile})
+    return reports
+
+
+def is_ancestor(caller_uid: str, target_uid: str, all_users: dict[str, dict] | None = None) -> bool:
+    """
+    Walk the createdBy chain upward from target_uid.
+    Returns True if caller_uid is found in the chain (direct parent,
+    grandparent, etc.), meaning the caller has access to target's data.
+    Also returns True if caller_uid == target_uid (viewing own data).
+    """
+    if caller_uid == target_uid:
+        return True
+
+    if all_users is None:
+        all_users = get_all_users()
+
+    visited = set()
+    current = target_uid
+    while current in all_users:
+        if current in visited:
+            break
+        visited.add(current)
+        parent = all_users[current].get("createdBy")
+        if not parent:
+            break
+        if parent == caller_uid:
+            return True
+        current = parent
+
+    return False

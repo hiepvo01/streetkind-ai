@@ -88,6 +88,58 @@ def me(uid: str = Depends(get_current_uid)):
     }
 
 
+# ── Monitor / hierarchy endpoints ────────────────────────────────────
+
+
+@router.get("/api/team/{uid}")
+def get_team(uid: str, caller_uid: str = Depends(get_current_uid)):
+    """
+    Return the direct reports of the given user, grouped by userLevel.
+    The caller must be the user themselves or an ancestor in the
+    createdBy hierarchy.
+    """
+    from .services.firebase_client import (
+        get_all_users, get_direct_reports, is_ancestor, get_user_profile,
+    )
+
+    all_users = get_all_users()
+
+    if not is_ancestor(caller_uid, uid, all_users):
+        raise HTTPException(403, detail="Access denied: user is outside your hierarchy")
+
+    profile = get_user_profile(uid)
+    if not profile:
+        raise HTTPException(404, detail="User not found")
+
+    reports = get_direct_reports(uid, all_users)
+
+    def _summarise(u: dict) -> dict:
+        return {
+            "uid": u["uid"],
+            "firstName": u.get("firstName", ""),
+            "lastName": u.get("lastName", ""),
+            "userLevel": u.get("userLevel", ""),
+            "site": u.get("site", ""),
+            "accountStatus": u.get("accountStatus", ""),
+        }
+
+    return {
+        "user": {
+            "uid": uid,
+            "firstName": profile.get("firstName", ""),
+            "lastName": profile.get("lastName", ""),
+            "userLevel": profile.get("userLevel", ""),
+            "site": profile.get("site", ""),
+        },
+        "teamLeaders": [
+            _summarise(r) for r in reports if r.get("userLevel") == "teamLeader"
+        ],
+        "teamMembers": [
+            _summarise(r) for r in reports if r.get("userLevel") == "teamMember"
+        ],
+    }
+
+
 @router.get("/api/health")
 def health():
     return {"status": "ok"}
