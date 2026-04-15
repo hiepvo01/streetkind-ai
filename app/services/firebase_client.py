@@ -67,7 +67,7 @@ def _push_form(form_type_key: str, data: dict, user_uid: str) -> str:
     return ref.key
 
 
-def push_incident_form(data: dict, user_uid: str) -> str:
+def push_incident_form(data: dict, user_uid: str, status: str = "completed") -> str:
     """Push incident + clients to Firebase matching SKSSIR flow."""
     _init_firebase()
 
@@ -85,7 +85,7 @@ def push_incident_form(data: dict, user_uid: str) -> str:
         "endTime": incident_data.get("endTime", now),
         "schemaName": ft["schema_name"],
         "schemaVersion": ft["schema_version"],
-        "status": "completed",
+        "status": status,
         "editedBy": "",
         "editedDate": "",
         "clientList": [],

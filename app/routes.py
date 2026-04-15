@@ -212,6 +212,7 @@ class SubmitRequest(BaseModel):
     form_type: str
     form_data: dict
     user_uid: str = Field(..., min_length=1)
+    status: str = "completed"
 
 
 _SUBMITTERS = {
@@ -242,7 +243,10 @@ def submit_form(req: SubmitRequest):
 
     try:
         validated = schema_class(**req.form_data)
-        key = push_fn(validated.model_dump(by_alias=True), req.user_uid)
+        push_kwargs = {"data": validated.model_dump(by_alias=True), "user_uid": req.user_uid}
+        if req.form_type == "incident":
+            push_kwargs["status"] = req.status
+        key = push_fn(**push_kwargs)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Validation failed: {str(e)}")
 

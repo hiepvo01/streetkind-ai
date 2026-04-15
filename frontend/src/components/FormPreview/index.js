@@ -22,12 +22,12 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (status = 'completed') => {
         setSubmitting(true);
         setError(null);
 
         try {
-            await submitForm(formType, data, user.uid);
+            await submitForm(formType, data, user.uid, status);
             onSubmitted();
         } catch (e) {
             setError('Submit failed: ' + e.message);
@@ -88,17 +88,29 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
                                 </Accordion.Content>
                             </Accordion>
 
-                            <div style={{ marginTop: '1rem' }}>
+                            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                 <Button
                                     color='green'
                                     size='large'
-                                    onClick={handleSubmit}
+                                    onClick={() => handleSubmit('completed')}
                                     disabled={submitting}
                                     loading={submitting}
                                     icon='check'
                                     labelPosition='left'
                                     content='Confirm & Submit'
                                 />
+                                {formType === 'incident' && (
+                                    <Button
+                                        color='yellow'
+                                        size='large'
+                                        onClick={() => handleSubmit('draft')}
+                                        disabled={submitting}
+                                        loading={submitting}
+                                        icon='save outline'
+                                        labelPosition='left'
+                                        content='Save as Draft'
+                                    />
+                                )}
                                 <Button
                                     color='red'
                                     size='large'

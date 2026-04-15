@@ -58,7 +58,7 @@ const FormList = ({ incidents, safebaseForms, formatSite }) => {
                                             <Table.Cell>
                                                 <Label
                                                     size='tiny'
-                                                    color={inc.status === 'completed' ? 'green' : 'grey'}
+                                                    color={inc.status === 'completed' ? 'green' : inc.status === 'draft' ? 'yellow' : 'grey'}
                                                 >
                                                     {inc.status || 'unknown'}
                                                 </Label>

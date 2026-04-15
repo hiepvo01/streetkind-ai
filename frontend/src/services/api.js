@@ -36,7 +36,7 @@ export const extractForm = async (transcript, formType, site) => {
     return response.json();
 };
 
-export const submitForm = async (formType, formData, userUid) => {
+export const submitForm = async (formType, formData, userUid, status = 'completed') => {
     const response = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -44,6 +44,7 @@ export const submitForm = async (formType, formData, userUid) => {
             form_type: formType,
             form_data: formData,
             user_uid: userUid,
+            status,
         }),
     });
 
