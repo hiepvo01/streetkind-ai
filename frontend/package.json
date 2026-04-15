@@ -2,7 +2,7 @@
   "name": "streetkind-ai",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://localhost:5000",
+  "proxy": "http://localhost:8000",
   "dependencies": {
     "firebase": "^12.11.0",
     "prop-types": "^15.8.1",
