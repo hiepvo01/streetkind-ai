@@ -156,6 +156,59 @@ def get_monitor_forms(uid: str, caller_uid: str = Depends(get_current_uid)):
     return get_forms_by_user(uid)
 
 
+# ── Incident CRUD (view / edit / delete) ──────────────────────────────
+
+
+def _check_incident_access(form_id: str, caller_uid: str):
+    """Verify the caller is the incident creator or an ancestor. Returns the incident data."""
+    from .services.firebase_client import get_all_users, is_ancestor, get_incident_full
+
+    data = get_incident_full(form_id)
+    if not data:
+        raise HTTPException(404, detail="Incident not found")
+
+    owner_uid = data["incident"].get("createdBy", "")
+    all_users = get_all_users()
+
+    if not is_ancestor(caller_uid, owner_uid, all_users):
+        raise HTTPException(403, detail="Access denied: incident is outside your hierarchy")
+
+    return data
+
+
+@router.get("/api/forms/incident/{form_id}")
+def get_incident(form_id: str, caller_uid: str = Depends(get_current_uid)):
+    """Fetch full incident data (incident + clients) for editing."""
+    return _check_incident_access(form_id, caller_uid)
+
+
+class UpdateIncidentRequest(BaseModel):
+    form_data: dict
+    status: str = "completed"
+
+
+@router.put("/api/forms/incident/{form_id}")
+def update_incident_route(form_id: str, req: UpdateIncidentRequest, caller_uid: str = Depends(get_current_uid)):
+    """Update an existing incident. Caller must be creator or ancestor."""
+    from .services.firebase_client import update_incident
+
+    _check_incident_access(form_id, caller_uid)
+
+    validated = CombinedIncidentSchema(**req.form_data)
+    update_incident(form_id, validated.model_dump(by_alias=True), caller_uid, req.status)
+    return {"status": "updated", "form_id": form_id}
+
+
+@router.delete("/api/forms/incident/{form_id}")
+def delete_incident_route(form_id: str, caller_uid: str = Depends(get_current_uid)):
+    """Delete an incident and its clients. Caller must be creator or ancestor."""
+    from .services.firebase_client import delete_incident
+
+    _check_incident_access(form_id, caller_uid)
+    delete_incident(form_id)
+    return {"status": "deleted", "form_id": form_id}
+
+
 @router.get("/api/health")
 def health():
     return {"status": "ok"}

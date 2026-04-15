@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Header, Icon, Label, Message, Segment, Table } from 'semantic-ui-react';
+import { Button, Header, Icon, Label, Message, Segment, Table } from 'semantic-ui-react';
 
 const formatDate = (timestamp) => {
     if (!timestamp) return '—';
@@ -16,7 +16,7 @@ const truncate = (text, maxLen = 80) => {
     return text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
 };
 
-const FormList = ({ incidents, safebaseForms, formatSite }) => {
+const FormList = ({ incidents, safebaseForms, formatSite, onEditIncident, onDeleteIncident }) => {
     const displaySite = (siteKey) => formatSite ? formatSite(siteKey) : (siteKey || '—');
     const hasData = incidents.length > 0 || safebaseForms.length > 0;
 
@@ -28,6 +28,12 @@ const FormList = ({ incidents, safebaseForms, formatSite }) => {
             </Message>
         );
     }
+
+    const handleDelete = (inc) => {
+        if (window.confirm(`Delete incident from ${formatDate(inc.createdDate)}? This cannot be undone.`)) {
+            onDeleteIncident(inc.id);
+        }
+    };
 
     return (
         <div>
@@ -45,6 +51,7 @@ const FormList = ({ incidents, safebaseForms, formatSite }) => {
                                     <Table.HeaderCell>Site</Table.HeaderCell>
                                     <Table.HeaderCell>Description</Table.HeaderCell>
                                     <Table.HeaderCell>Status</Table.HeaderCell>
+                                    <Table.HeaderCell>Actions</Table.HeaderCell>
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
@@ -62,6 +69,22 @@ const FormList = ({ incidents, safebaseForms, formatSite }) => {
                                                 >
                                                     {inc.status || 'unknown'}
                                                 </Label>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Button
+                                                    icon='edit'
+                                                    size='mini'
+                                                    color='blue'
+                                                    title='Edit'
+                                                    onClick={() => onEditIncident(inc.id)}
+                                                />
+                                                <Button
+                                                    icon='trash'
+                                                    size='mini'
+                                                    color='red'
+                                                    title='Delete'
+                                                    onClick={() => handleDelete(inc)}
+                                                />
                                             </Table.Cell>
                                         </Table.Row>
                                     ))}
@@ -107,6 +130,8 @@ FormList.propTypes = {
     incidents: PropTypes.array.isRequired,
     safebaseForms: PropTypes.array.isRequired,
     formatSite: PropTypes.func,
+    onEditIncident: PropTypes.func.isRequired,
+    onDeleteIncident: PropTypes.func.isRequired,
 };
 
 export default FormList;

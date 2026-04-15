@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Breadcrumb,
+    Button,
     Container,
     Divider,
     Grid,
@@ -9,14 +10,16 @@ import {
     Label,
     Loader,
     Message,
+    Modal,
     Segment,
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
 import { useAuth } from '../../context/AuthContext';
-import { fetchTeam, fetchMonitorForms } from '../../services/api';
+import { fetchTeam, fetchMonitorForms, fetchIncidentFull, updateIncident, deleteIncident } from '../../services/api';
 import MemberCard from './MemberCard';
 import FormList from './FormList';
+import IncidentForm from '../forms/IncidentForm';
 
 const ROLE_LABELS = {
     administrator: 'Administrator',
@@ -24,7 +27,7 @@ const ROLE_LABELS = {
     teamMember: 'Team Member',
 };
 
-const Monitor = ({ sites = [] }) => {
+const Monitor = ({ sites = [], fieldOptions = {} }) => {
     const { user, profile } = useAuth();
 
     const siteMap = useMemo(() => {
@@ -40,6 +43,14 @@ const Monitor = ({ sites = [] }) => {
     const [formsData, setFormsData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Edit modal state
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editFormId, setEditFormId] = useState(null);
+    const [editFormData, setEditFormData] = useState(null);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     const currentUid = breadcrumb.length > 0
         ? breadcrumb[breadcrumb.length - 1].uid
@@ -87,8 +98,64 @@ const Monitor = ({ sites = [] }) => {
         }
     };
 
+    // ── Edit / Delete handlers ───────────────────────────────────────
+
+    const handleEditIncident = async (formId) => {
+        setEditFormId(formId);
+        setEditModalOpen(true);
+        setEditLoading(true);
+        setEditError(null);
+        setEditFormData(null);
+        try {
+            const data = await fetchIncidentFull(formId);
+            setEditFormData(data);
+        } catch (e) {
+            setEditError(e.message);
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const handleSaveEdit = async (status) => {
+        if (!editFormData || !editFormId) return;
+        setSaving(true);
+        setEditError(null);
+        try {
+            await updateIncident(editFormId, editFormData, status);
+            setEditModalOpen(false);
+            setEditFormId(null);
+            setEditFormData(null);
+            if (currentUid) loadData(currentUid);
+        } catch (e) {
+            setEditError(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteIncident = async (formId) => {
+        try {
+            await deleteIncident(formId);
+            if (currentUid) loadData(currentUid);
+        } catch (e) {
+            setError('Delete failed: ' + e.message);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setEditModalOpen(false);
+        setEditFormId(null);
+        setEditFormData(null);
+        setEditError(null);
+    };
+
     const viewedUser = teamData?.user;
     const isOwnPage = breadcrumb.length === 0;
+
+    const incidentFieldOptions = {
+        ...(fieldOptions.incident || {}),
+        ...(fieldOptions.client || {}),
+    };
 
     return (
         <Container style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
@@ -229,16 +296,78 @@ const Monitor = ({ sites = [] }) => {
                             incidents={formsData.incidents || []}
                             safebaseForms={formsData.safebaseForms || []}
                             formatSite={formatSite}
+                            onEditIncident={handleEditIncident}
+                            onDeleteIncident={handleDeleteIncident}
                         />
                     )}
                 </>
             )}
+
+            {/* Edit Incident Modal */}
+            <Modal
+                open={editModalOpen}
+                onClose={handleCloseModal}
+                size='large'
+                closeIcon
+            >
+                <Modal.Header>
+                    <Icon name='edit' />
+                    Edit Incident Report
+                </Modal.Header>
+                <Modal.Content scrolling>
+                    {editLoading && (
+                        <Segment basic>
+                            <Loader active inline='centered' content='Loading incident...' />
+                        </Segment>
+                    )}
+                    {editError && (
+                        <Message error>
+                            <Icon name='warning circle' />
+                            {editError}
+                        </Message>
+                    )}
+                    {editFormData && !editLoading && (
+                        <IncidentForm
+                            data={editFormData}
+                            onChange={setEditFormData}
+                            fieldOptions={incidentFieldOptions}
+                            sites={sites}
+                        />
+                    )}
+                </Modal.Content>
+                <Modal.Actions>
+                    <Button
+                        color='green'
+                        onClick={() => handleSaveEdit('completed')}
+                        disabled={saving || editLoading || !editFormData}
+                        loading={saving}
+                        icon='check'
+                        labelPosition='left'
+                        content='Save as Completed'
+                    />
+                    <Button
+                        color='yellow'
+                        onClick={() => handleSaveEdit('draft')}
+                        disabled={saving || editLoading || !editFormData}
+                        loading={saving}
+                        icon='save outline'
+                        labelPosition='left'
+                        content='Save as Draft'
+                    />
+                    <Button
+                        onClick={handleCloseModal}
+                        disabled={saving}
+                        content='Cancel'
+                    />
+                </Modal.Actions>
+            </Modal>
         </Container>
     );
 };
 
 Monitor.propTypes = {
     sites: PropTypes.array,
+    fieldOptions: PropTypes.object,
 };
 
 export default Monitor;

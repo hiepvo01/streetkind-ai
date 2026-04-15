@@ -85,3 +85,43 @@ export const fetchMonitorForms = async (uid) => {
     }
     return response.json();
 };
+
+
+// ── Incident CRUD (view / edit / delete) ────────────────────────────
+
+export const fetchIncidentFull = async (formId) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`/api/forms/incident/${formId}`, { headers });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to fetch incident');
+    }
+    return response.json();
+};
+
+export const updateIncident = async (formId, formData, status = 'completed') => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`/api/forms/incident/${formId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ form_data: formData, status }),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to update incident');
+    }
+    return response.json();
+};
+
+export const deleteIncident = async (formId) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`/api/forms/incident/${formId}`, {
+        method: 'DELETE',
+        headers,
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to delete incident');
+    }
+    return response.json();
+};

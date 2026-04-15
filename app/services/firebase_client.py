@@ -187,6 +187,77 @@ def get_forms_by_user(uid: str) -> dict:
     }
 
 
+# ── Single-incident CRUD ──────────────────────────────────────────────
+
+
+def get_incident_full(form_id: str) -> dict | None:
+    """Fetch a single incident and its associated clients from Firebase."""
+    _init_firebase()
+    incident = db.reference(f"incidentForms/{form_id}").get()
+    if incident is None:
+        return None
+
+    client_ids = incident.get("clientList", [])
+    clients = []
+    for cid in client_ids:
+        if isinstance(cid, str):
+            client_data = db.reference(f"clients/{cid}").get()
+            if client_data:
+                clients.append(client_data)
+
+    return {"incident": incident, "clients": clients}
+
+
+def update_incident(form_id: str, data: dict, editor_uid: str, status: str = "completed") -> None:
+    """Update an existing incident and replace its clients in Firebase."""
+    _init_firebase()
+
+    incident_data = data.get("incident", data)
+    clients_data = data.get("clients", [])
+    now = int(time.time() * 1000)
+
+    incident_data["editedBy"] = editor_uid
+    incident_data["editedDate"] = now
+    incident_data["status"] = status
+
+    # Delete old clients
+    old_incident = db.reference(f"incidentForms/{form_id}").get() or {}
+    for old_cid in old_incident.get("clientList", []):
+        if isinstance(old_cid, str):
+            db.reference(f"clients/{old_cid}").delete()
+
+    # Write new clients
+    client_ids = []
+    for client in clients_data:
+        client.update({
+            "createdBy": incident_data.get("createdBy", editor_uid),
+            "incidentId": form_id,
+            "site": incident_data.get("site", ""),
+            "schemaName": "client",
+            "schemaVersion": 1,
+            "editedBy": editor_uid,
+            "editedDate": now,
+        })
+        client_ref = db.reference("clients").push(client)
+        client_ids.append(client_ref.key)
+
+    incident_data["clientList"] = client_ids
+    db.reference(f"incidentForms/{form_id}").update(incident_data)
+
+
+def delete_incident(form_id: str) -> None:
+    """Delete an incident and its associated clients from Firebase."""
+    _init_firebase()
+
+    incident = db.reference(f"incidentForms/{form_id}").get()
+    if incident:
+        for cid in incident.get("clientList", []):
+            if isinstance(cid, str):
+                db.reference(f"clients/{cid}").delete()
+
+    db.reference(f"incidentForms/{form_id}").delete()
+
+
 # ── Hierarchy helpers ────────────────────────────────────────────────
 
 
