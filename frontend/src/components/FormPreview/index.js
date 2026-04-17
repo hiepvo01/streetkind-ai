@@ -45,9 +45,9 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
                             <Header as='h3'>
                                 <Icon name='file alternate outline' />
                                 <Header.Content>
-                                    Extracted Form Data
+                                    Form data
                                     <Header.Subheader>
-                                        Review and edit before submitting
+                                        Fill in manually or use voice, then review before submitting
                                     </Header.Subheader>
                                 </Header.Content>
                             </Header>

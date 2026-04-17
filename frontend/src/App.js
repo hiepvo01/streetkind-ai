@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar, Loader, Segment } from 'semantic-ui-react';
 
 import { fetchConfig } from './services/api';
+import { createEmptyIncidentFormData, createEmptySafeBaseFormData } from './utils/initialFormData';
 import { useAuth } from './context/AuthContext';
 import MenuBar from './components/MenuBar';
 import NavSidebar from './components/NavSidebar';
@@ -19,7 +20,7 @@ const App = () => {
     const [formType, setFormType] = useState(null);
     const [site, setSite] = useState(null);
     const [transcript, setTranscript] = useState('');
-    const [extractedData, setExtractedData] = useState(null);
+    const [formData, setFormData] = useState(null);
     const [submitted, setSubmitted] = useState(false);
 
     useEffect(() => {
@@ -27,6 +28,11 @@ const App = () => {
             setConfig(cfg);
             setFormType(cfg.default_form_type);
             setSite(cfg.default_site);
+            setFormData(
+                cfg.default_form_type === 'safebase'
+                    ? createEmptySafeBaseFormData(cfg.default_site || '')
+                    : createEmptyIncidentFormData(cfg.default_site || '')
+            );
         });
     }, []);
 
@@ -34,14 +40,24 @@ const App = () => {
 
     const handleReset = () => {
         setTranscript('');
-        setExtractedData(null);
         setSubmitted(false);
+        setFormData(
+            formType === 'safebase'
+                ? createEmptySafeBaseFormData(site || '')
+                : createEmptyIncidentFormData(site || '')
+        );
     };
 
     const handleSelectFormType = (type) => {
         setCurrentView('forms');
         setFormType(type);
-        handleReset();
+        setTranscript('');
+        setSubmitted(false);
+        setFormData(
+            type === 'safebase'
+                ? createEmptySafeBaseFormData(site || '')
+                : createEmptyIncidentFormData(site || '')
+        );
     };
 
     const handleShowDashboard = () => {
@@ -106,14 +122,14 @@ const App = () => {
                                     onTranscriptChange={setTranscript}
                                     formType={formType}
                                     site={site}
-                                    onExtracted={setExtractedData}
+                                    onExtracted={setFormData}
                                     submitted={submitted}
                                 />
-                                {extractedData && !submitted && (
+                                {formData && !submitted && (
                                     <FormPreview
                                         formType={formType}
-                                        data={extractedData}
-                                        onDataChange={setExtractedData}
+                                        data={formData}
+                                        onDataChange={setFormData}
                                         onSubmitted={() => setSubmitted(true)}
                                         onReset={handleReset}
                                         fieldOptions={config.field_options}
