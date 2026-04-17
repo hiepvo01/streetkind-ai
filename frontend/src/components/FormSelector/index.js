@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Header, Button, Form, Select, Segment, Icon } from 'semantic-ui-react';
+import { Container, Header, Button, Form, Select, Segment } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
 const FormSelector = ({
@@ -73,18 +73,6 @@ const FormSelector = ({
                                     placeholder='Choose site…'
                                     aria-label='Site: open list to choose a location'
                                 />
-                                <div
-                                    role='note'
-                                    style={{
-                                        marginTop: '0.65rem',
-                                        fontSize: '0.875rem',
-                                        color: 'rgba(0,0,0,0.55)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.35rem',
-                                    }}
-                                >
-                                </div>
                             </Form.Field>
                         </Form>
                     </Segment>

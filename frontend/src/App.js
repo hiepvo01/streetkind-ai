@@ -60,6 +60,17 @@ const App = () => {
         );
     };
 
+    const handleSelectSite = (newSite) => {
+        setSite(newSite);
+        setFormData((prev) => {
+            if (!prev) return prev;
+            if (formType === 'incident') {
+                return { ...prev, incident: { ...prev.incident, site: newSite } };
+            }
+            return { ...prev, site: newSite };
+        });
+    };
+
     const handleShowDashboard = () => {
         setCurrentView('dashboard');
     };
@@ -114,7 +125,7 @@ const App = () => {
                                     onSelectFormType={handleSelectFormType}
                                     sites={config.sites}
                                     activeSite={site}
-                                    onSelectSite={setSite}
+                                    onSelectSite={handleSelectSite}
                                 />
                                 <VoiceInput
                                     speechConfig={config.speech_recognition}
