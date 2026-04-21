@@ -183,6 +183,8 @@ def get_forms_by_user(uid: str) -> dict:
         "incidents": [
             _summarise_incident(fid, data) for fid, data in incidents_raw.items()
         ],
+        # RTDB uses legacy node name "safeSpaceForms"; API uses "safebaseForms"
+        # to align with the app's form_type key ("safebase") and UI wording.
         "safebaseForms": [
             _summarise_safebase(fid, data) for fid, data in safebase_raw.items()
         ],
