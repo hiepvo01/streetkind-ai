@@ -111,7 +111,7 @@ class TestIncidentSubmission:
         """Submit an incident via the API, verify it in Firebase, then clean up."""
         id_token = get_firebase_id_token_for_uid("e2e-test-user")
         resp = requests.post(
-            "http://localhost:5000/api/submit",
+            "http://localhost:8000/api/submit",
             headers={
                 "Authorization": f"Bearer {id_token}",
                 "Content-Type": "application/json",

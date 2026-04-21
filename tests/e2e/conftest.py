@@ -2,7 +2,7 @@
 Shared fixtures and helpers for Playwright E2E tests.
 
 Requires both servers running:
-  - Backend  (FastAPI)  on http://localhost:5000
+  - Backend  (FastAPI)  on http://localhost:8000
   - Frontend (React)    on http://localhost:3000
 """
 
@@ -14,7 +14,8 @@ import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials, db as firebase_db_module
 
-CRED_PATH = "streetkind-app-dev-firebase-adminsdk-fbsvc-e556e5bb1c.json"
+DEFAULT_CRED_PATH = "firebase-service-account.json"
+CRED_PATH = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH", DEFAULT_CRED_PATH)
 DB_URL = "https://streetkind-app-dev-default-rtdb.firebaseio.com"
 BASE_URL = "http://localhost:3000"
 

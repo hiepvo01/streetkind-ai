@@ -62,7 +62,7 @@ cd frontend && npm install && cd ..
 ### Running
 
 ```bash
-# Terminal 1: Backend (port 5000)
+# Terminal 1: Backend (port 8000)
 conda activate streetkind-ai
 python run.py
 
@@ -72,7 +72,7 @@ cd frontend && npm start
 
 Open http://localhost:3000 in **Chrome** (required for Web Speech API).
 
-FastAPI docs: http://localhost:5000/docs
+FastAPI docs: http://localhost:8000/docs
 
 ### Demo Accounts
 
@@ -87,6 +87,9 @@ FastAPI docs: http://localhost:5000/docs
 ```bash
 # Both servers must be running first
 conda activate streetkind-ai
+# Ensure Firebase credentials are set for Firebase-verified E2E tests:
+# - FIREBASE_SERVICE_ACCOUNT_PATH
+# - FIREBASE_DATABASE_URL
 pytest tests/e2e/ -v              # headless
 pytest tests/e2e/ -v --headed     # watch the browser
 ```
