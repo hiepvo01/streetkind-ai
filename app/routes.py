@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -12,6 +13,7 @@ from .schemas.safebase_schema import SafeBaseFormSchema
 router = APIRouter()
 
 MAX_TRANSCRIPT_LENGTH = int(os.getenv("MAX_TRANSCRIPT_LENGTH", "5000"))
+_RTDB_PUSH_ID_RE = re.compile(r"^-[A-Za-z0-9_-]{19}$")
 
 
 # ── Response models ──────────────────────────────────────────────────
@@ -152,6 +154,9 @@ def get_monitor_forms(uid: str, caller_uid: str = Depends(get_current_uid)):
 def _check_incident_access(form_id: str, caller_uid: str):
     """Verify the caller is the incident creator or an ancestor. Returns the incident data."""
     from .services.firebase_client import get_all_users, is_ancestor, get_incident_full
+
+    if not _RTDB_PUSH_ID_RE.match(form_id):
+        raise HTTPException(status_code=400, detail="Invalid form_id")
 
     data = get_incident_full(form_id)
     if not data:
