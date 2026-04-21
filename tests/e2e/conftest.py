@@ -6,8 +6,12 @@ Requires both servers running:
   - Frontend (React)    on http://localhost:3000
 """
 
+import os
+
 import pytest
+import requests
 import firebase_admin
+from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials, db as firebase_db_module
 
 CRED_PATH = "streetkind-app-dev-firebase-adminsdk-fbsvc-e556e5bb1c.json"
@@ -17,6 +21,29 @@ BASE_URL = "http://localhost:3000"
 DEMO_VOLUNTEER = {"email": "volunteer@streetkind.demo", "password": "streetkind123"}
 DEMO_ADMIN = {"email": "admin@streetkind.demo", "password": "streetkind123"}
 DEMO_LEADER = {"email": "leader@streetkind.demo", "password": "streetkind123"}
+
+# Public Web API key (same project as CRED_PATH); matches frontend/src/firebase.js.
+_DEFAULT_FIREBASE_WEB_API_KEY = "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ"
+
+
+def get_firebase_id_token_for_uid(uid: str = "e2e-test-user") -> str:
+    """
+    Mint a Firebase ID token for protected API tests.
+
+    Uses Admin SDK custom token + Identity Toolkit signInWithCustomToken.
+    Requires firebase_app to be initialised (use fb_db / firebase_app fixture).
+    """
+    custom = firebase_auth.create_custom_token(uid)
+    token_str = custom.decode("utf-8") if isinstance(custom, bytes) else custom
+    api_key = os.environ.get("FIREBASE_WEB_API_KEY", _DEFAULT_FIREBASE_WEB_API_KEY)
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key={api_key}"
+    resp = requests.post(
+        url,
+        json={"token": token_str, "returnSecureToken": True},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()["idToken"]
 
 
 # ---------------------------------------------------------------------------

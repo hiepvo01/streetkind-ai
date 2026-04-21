@@ -12,12 +12,10 @@ import {
 import PropTypes from 'prop-types';
 
 import { submitForm } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 import IncidentForm from '../forms/IncidentForm';
 import SafeBaseForm from '../forms/SafeBaseForm';
 
 const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, fieldOptions, sites }) => {
-    const { user } = useAuth();
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
@@ -27,7 +25,7 @@ const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, field
         setError(null);
 
         try {
-            await submitForm(formType, data, user.uid, status);
+            await submitForm(formType, data, status);
             onSubmitted();
         } catch (e) {
             setError('Submit failed: ' + e.message);

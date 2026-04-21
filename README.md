@@ -160,7 +160,7 @@ firebase auth:import users.json --project streetkind-app-dev
 |----------|--------|-------------|
 | `/api/config` | GET | UI configuration (sites, form types, field options) |
 | `/api/extract` | POST | Voice transcript -> AI structured form data |
-| `/api/submit` | POST | Submit form data to Firebase |
+| `/api/submit` | POST | Submit form data to Firebase (requires Bearer token; `createdBy` is the token UID) |
 | `/api/dashboard` | GET | Dashboard impact statistics |
 | `/api/me` | GET | Authenticated user profile (requires `Authorization: Bearer <Firebase ID token>`) |
 | `/api/health` | GET | Health check |

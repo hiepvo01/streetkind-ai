@@ -7,7 +7,7 @@ then verifies the data landed correctly in Firebase.
 
 import requests
 from playwright.sync_api import Page, expect
-from .conftest import do_login, BASE_URL, DEMO_VOLUNTEER
+from .conftest import do_login, BASE_URL, DEMO_VOLUNTEER, get_firebase_id_token_for_uid
 
 SAMPLE_INCIDENT_DATA = {
     "incident": {
@@ -109,12 +109,16 @@ SAMPLE_INCIDENT_DATA = {
 class TestIncidentSubmission:
     def test_submit_incident_writes_to_firebase(self, fb_db, cleanup_keys):
         """Submit an incident via the API, verify it in Firebase, then clean up."""
+        id_token = get_firebase_id_token_for_uid("e2e-test-user")
         resp = requests.post(
             "http://localhost:5000/api/submit",
+            headers={
+                "Authorization": f"Bearer {id_token}",
+                "Content-Type": "application/json",
+            },
             json={
                 "form_type": "incident",
                 "form_data": SAMPLE_INCIDENT_DATA,
-                "user_uid": "e2e-test-user",
             },
         )
         assert resp.status_code == 200, f"Submit failed: {resp.text}"
@@ -125,6 +129,7 @@ class TestIncidentSubmission:
         assert incident is not None, "Incident not found in Firebase"
         assert incident["incidentDescription"] == "E2E test incident - should be deleted after test"
         assert incident["status"] == "completed"
+        assert incident.get("createdBy") == "e2e-test-user"
         cleanup_keys.append(("incidentForms", key))
 
         # Verify the client was created and linked

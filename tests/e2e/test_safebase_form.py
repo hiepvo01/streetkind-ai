@@ -6,7 +6,7 @@ Submits via the backend API (no Claude extraction) and verifies in Firebase.
 
 import requests
 from playwright.sync_api import Page, expect
-from .conftest import do_login, BASE_URL
+from .conftest import do_login, BASE_URL, get_firebase_id_token_for_uid
 
 SAMPLE_SAFEBASE_DATA = {
     "site": "townHall",
@@ -23,12 +23,16 @@ SAMPLE_SAFEBASE_DATA = {
 class TestSafeBaseSubmission:
     def test_submit_safebase_writes_to_firebase(self, fb_db, cleanup_keys):
         """Submit a SafeBase form via the API and verify it in Firebase."""
+        id_token = get_firebase_id_token_for_uid("e2e-test-user")
         resp = requests.post(
             "http://localhost:5000/api/submit",
+            headers={
+                "Authorization": f"Bearer {id_token}",
+                "Content-Type": "application/json",
+            },
             json={
                 "form_type": "safebase",
                 "form_data": SAMPLE_SAFEBASE_DATA,
-                "user_uid": "e2e-test-user",
             },
         )
         assert resp.status_code == 200, f"Submit failed: {resp.text}"
@@ -39,6 +43,7 @@ class TestSafeBaseSubmission:
         assert form["male"]["from18to25"] == 3
         assert form["female"]["from26to39"] == 2
         assert form["assistanceRendered"]["directions"] == 2
+        assert form.get("createdBy") == "e2e-test-user"
         cleanup_keys.append(("safeSpaceForms", key))
 
     def test_safebase_form_ui_switch(self, page: Page):
