@@ -10,18 +10,21 @@ import VoiceInput from './components/VoiceInput';
 import FormPreview from './components/FormPreview';
 import Dashboard from './components/Dashboard';
 import Monitor from './components/Monitor';
+import MyIncidents from './components/MyIncidents';
 import Login from './components/Login';
 
 const App = () => {
-    const { user, loading } = useAuth();
+    const { user, profile, loading } = useAuth();
     const [config, setConfig] = useState(null);
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    const [currentView, setCurrentView] = useState('forms'); // 'forms', 'dashboard', or 'monitor'
+    const [currentView, setCurrentView] = useState('forms'); // 'forms' | 'dashboard' | 'myIncidents' | 'monitor'
     const [formType, setFormType] = useState(null);
     const [site, setSite] = useState(null);
     const [transcript, setTranscript] = useState('');
     const [extractedData, setExtractedData] = useState(null);
     const [submitted, setSubmitted] = useState(false);
+
+    const showMonitorNav = profile?.userLevel === 'administrator' || profile?.userLevel === 'teamLeader';
 
     useEffect(() => {
         fetchConfig().then((cfg) => {
@@ -30,6 +33,12 @@ const App = () => {
             setSite(cfg.default_site);
         });
     }, []);
+
+    useEffect(() => {
+        if (!showMonitorNav && currentView === 'monitor') {
+            setCurrentView('myIncidents');
+        }
+    }, [showMonitorNav, currentView]);
 
     const toggleSidebar = () => setSidebarVisible(!sidebarVisible);
 
@@ -51,6 +60,10 @@ const App = () => {
 
     const handleShowMonitor = () => {
         setCurrentView('monitor');
+    };
+
+    const handleShowMyIncidents = () => {
+        setCurrentView('myIncidents');
     };
 
     if (loading) {
@@ -88,12 +101,16 @@ const App = () => {
                     onSelectFormType={handleSelectFormType}
                     currentView={currentView}
                     onShowDashboard={handleShowDashboard}
+                    onShowMyIncidents={handleShowMyIncidents}
                     onShowMonitor={handleShowMonitor}
+                    showMonitor={showMonitorNav}
                 />
                 <Sidebar.Pusher>
                     <div className='main-content'>
                         {currentView === 'dashboard' ? (
                             <Dashboard />
+                        ) : currentView === 'myIncidents' ? (
+                            <MyIncidents sites={config.sites} fieldOptions={config.field_options} />
                         ) : currentView === 'monitor' ? (
                             <Monitor sites={config.sites} fieldOptions={config.field_options} />
                         ) : (

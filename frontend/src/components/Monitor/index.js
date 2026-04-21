@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Breadcrumb,
-    Button,
     Container,
     Divider,
     Grid,
@@ -10,16 +9,15 @@ import {
     Label,
     Loader,
     Message,
-    Modal,
     Segment,
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
 import { useAuth } from '../../context/AuthContext';
-import { fetchTeam, fetchMonitorForms, fetchIncidentFull, updateIncident, deleteIncident } from '../../services/api';
+import { fetchTeam, fetchMonitorForms, deleteIncident } from '../../services/api';
 import MemberCard from './MemberCard';
 import FormList from './FormList';
-import IncidentForm from '../forms/IncidentForm';
+import IncidentEditModal from './IncidentEditModal';
 
 const ROLE_LABELS = {
     administrator: 'Administrator',
@@ -44,13 +42,8 @@ const Monitor = ({ sites = [], fieldOptions = {} }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Edit modal state
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editFormId, setEditFormId] = useState(null);
-    const [editFormData, setEditFormData] = useState(null);
-    const [editLoading, setEditLoading] = useState(false);
-    const [editError, setEditError] = useState(null);
-    const [saving, setSaving] = useState(false);
 
     const currentUid = breadcrumb.length > 0
         ? breadcrumb[breadcrumb.length - 1].uid
@@ -100,37 +93,9 @@ const Monitor = ({ sites = [], fieldOptions = {} }) => {
 
     // ── Edit / Delete handlers ───────────────────────────────────────
 
-    const handleEditIncident = async (formId) => {
+    const handleEditIncident = (formId) => {
         setEditFormId(formId);
         setEditModalOpen(true);
-        setEditLoading(true);
-        setEditError(null);
-        setEditFormData(null);
-        try {
-            const data = await fetchIncidentFull(formId);
-            setEditFormData(data);
-        } catch (e) {
-            setEditError(e.message);
-        } finally {
-            setEditLoading(false);
-        }
-    };
-
-    const handleSaveEdit = async (status) => {
-        if (!editFormData || !editFormId) return;
-        setSaving(true);
-        setEditError(null);
-        try {
-            await updateIncident(editFormId, editFormData, status);
-            setEditModalOpen(false);
-            setEditFormId(null);
-            setEditFormData(null);
-            if (currentUid) loadData(currentUid);
-        } catch (e) {
-            setEditError(e.message);
-        } finally {
-            setSaving(false);
-        }
     };
 
     const handleDeleteIncident = async (formId) => {
@@ -145,8 +110,6 @@ const Monitor = ({ sites = [], fieldOptions = {} }) => {
     const handleCloseModal = () => {
         setEditModalOpen(false);
         setEditFormId(null);
-        setEditFormData(null);
-        setEditError(null);
     };
 
     const viewedUser = teamData?.user;
@@ -230,6 +193,13 @@ const Monitor = ({ sites = [], fieldOptions = {} }) => {
                         </Header>
                     </Segment>
 
+                    {isOwnPage && (viewedUser.userLevel === 'administrator' || viewedUser.userLevel === 'teamLeader') && (
+                        <Message info>
+                            <Icon name='info circle' />
+                            Your own incident reports and SafeBase forms are listed under <strong>My Incidents</strong> in the sidebar.
+                        </Message>
+                    )}
+
                     {/* Team Leaders section (admins only) */}
                     {viewedUser.userLevel === 'administrator' && (
                         <>
@@ -286,81 +256,35 @@ const Monitor = ({ sites = [], fieldOptions = {} }) => {
                         </>
                     )}
 
-                    {/* Forms section */}
-                    <Header as='h3'>
-                        <Icon name='clipboard list' />
-                        {isOwnPage ? 'Your Forms' : `${viewedUser.firstName}'s Forms`}
-                    </Header>
-                    {formsData && (
-                        <FormList
-                            incidents={formsData.incidents || []}
-                            safebaseForms={formsData.safebaseForms || []}
-                            formatSite={formatSite}
-                            onEditIncident={handleEditIncident}
-                            onDeleteIncident={handleDeleteIncident}
-                        />
+                    {/* Forms: only when viewing a subordinate (use My Incidents for your own) */}
+                    {!isOwnPage && (
+                        <>
+                            <Header as='h3'>
+                                <Icon name='clipboard list' />
+                                {`${viewedUser.firstName}'s Forms`}
+                            </Header>
+                            {formsData && (
+                                <FormList
+                                    incidents={formsData.incidents || []}
+                                    safebaseForms={formsData.safebaseForms || []}
+                                    formatSite={formatSite}
+                                    onEditIncident={handleEditIncident}
+                                    onDeleteIncident={handleDeleteIncident}
+                                />
+                            )}
+                        </>
                     )}
                 </>
             )}
 
-            {/* Edit Incident Modal */}
-            <Modal
+            <IncidentEditModal
                 open={editModalOpen}
                 onClose={handleCloseModal}
-                size='large'
-                closeIcon
-            >
-                <Modal.Header>
-                    <Icon name='edit' />
-                    Edit Incident Report
-                </Modal.Header>
-                <Modal.Content scrolling>
-                    {editLoading && (
-                        <Segment basic>
-                            <Loader active inline='centered' content='Loading incident...' />
-                        </Segment>
-                    )}
-                    {editError && (
-                        <Message error>
-                            <Icon name='warning circle' />
-                            {editError}
-                        </Message>
-                    )}
-                    {editFormData && !editLoading && (
-                        <IncidentForm
-                            data={editFormData}
-                            onChange={setEditFormData}
-                            fieldOptions={incidentFieldOptions}
-                            sites={sites}
-                        />
-                    )}
-                </Modal.Content>
-                <Modal.Actions>
-                    <Button
-                        color='green'
-                        onClick={() => handleSaveEdit('completed')}
-                        disabled={saving || editLoading || !editFormData}
-                        loading={saving}
-                        icon='check'
-                        labelPosition='left'
-                        content='Save as Completed'
-                    />
-                    <Button
-                        color='yellow'
-                        onClick={() => handleSaveEdit('draft')}
-                        disabled={saving || editLoading || !editFormData}
-                        loading={saving}
-                        icon='save outline'
-                        labelPosition='left'
-                        content='Save as Draft'
-                    />
-                    <Button
-                        onClick={handleCloseModal}
-                        disabled={saving}
-                        content='Cancel'
-                    />
-                </Modal.Actions>
-            </Modal>
+                formId={editFormId}
+                sites={sites}
+                incidentFieldOptions={incidentFieldOptions}
+                onSaved={() => currentUid && loadData(currentUid)}
+            />
         </Container>
     );
 };

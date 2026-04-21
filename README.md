@@ -121,7 +121,9 @@ streetkind-ai/
         Login/                      # Login page (matches SKSSIR design)
         Dashboard/                  # 11 impact stat cards
         MenuBar/                    # Top nav with logo + user name
-        NavSidebar/                 # Push sidebar with role-based items
+        NavSidebar/                 # Push sidebar (My Incidents for all; Monitor for admin/team leader)
+        MyIncidents/                # Own incident + SafeBase forms list
+        Monitor/                    # Hierarchy drill-down + subordinate forms
         FormSelector/               # Form type + site selection
         VoiceInput/                 # Mic button + transcript + extract
         FormPreview/                # Routes to actual form views
