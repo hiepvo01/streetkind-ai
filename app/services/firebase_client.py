@@ -211,7 +211,13 @@ def get_incident_full(form_id: str) -> dict | None:
 
 
 def update_incident(form_id: str, data: dict, editor_uid: str, status: str = "completed") -> None:
-    """Update an existing incident and replace its clients in Firebase."""
+    """
+    Update an existing incident and replace its clients in Firebase.
+
+    Concurrency note: this is a non-atomic read → delete → write flow. If two
+    updates happen concurrently, they can interleave and temporarily delete or
+    orphan client records. The last write to incidentForms/{form_id} wins.
+    """
     _init_firebase()
 
     incident_data = data.get("incident", data)
