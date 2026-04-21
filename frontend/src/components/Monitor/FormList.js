@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Button, Header, Icon, Label, Message, Segment, Table } from 'semantic-ui-react';
+import { Button, Header, Icon, Label, Message, Modal, Segment, Table } from 'semantic-ui-react';
 
 const formatDate = (timestamp) => {
     if (!timestamp) return '—';
@@ -19,6 +19,7 @@ const truncate = (text, maxLen = 80) => {
 const FormList = ({ incidents, safebaseForms, formatSite, onEditIncident, onDeleteIncident }) => {
     const displaySite = (siteKey) => formatSite ? formatSite(siteKey) : (siteKey || '—');
     const hasData = incidents.length > 0 || safebaseForms.length > 0;
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     if (!hasData) {
         return (
@@ -30,9 +31,15 @@ const FormList = ({ incidents, safebaseForms, formatSite, onEditIncident, onDele
     }
 
     const handleDelete = (inc) => {
-        if (window.confirm(`Delete incident from ${formatDate(inc.createdDate)}? This cannot be undone.`)) {
-            onDeleteIncident(inc.id);
-        }
+        setDeleteTarget(inc);
+    };
+
+    const handleCancelDelete = () => setDeleteTarget(null);
+
+    const handleConfirmDelete = () => {
+        if (!deleteTarget) return;
+        onDeleteIncident(deleteTarget.id);
+        setDeleteTarget(null);
     };
 
     return (
@@ -122,6 +129,33 @@ const FormList = ({ incidents, safebaseForms, formatSite, onEditIncident, onDele
                     </div>
                 </Segment>
             )}
+
+            <Modal
+                size='small'
+                open={!!deleteTarget}
+                onClose={handleCancelDelete}
+                closeIcon
+            >
+                <Modal.Header>
+                    <Icon name='trash' />
+                    Delete incident?
+                </Modal.Header>
+                <Modal.Content>
+                    <p>
+                        Delete incident from <strong>{formatDate(deleteTarget?.createdDate)}</strong>? This cannot be undone.
+                    </p>
+                </Modal.Content>
+                <Modal.Actions>
+                    <Button onClick={handleCancelDelete} content='Cancel' />
+                    <Button
+                        color='red'
+                        icon='trash'
+                        labelPosition='left'
+                        content='Delete'
+                        onClick={handleConfirmDelete}
+                    />
+                </Modal.Actions>
+            </Modal>
         </div>
     );
 };
