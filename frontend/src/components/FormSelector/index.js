@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Grid, Header, Button, Form, Select } from 'semantic-ui-react';
+import { Container, Header, Button, Form, Select, Segment } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
 const FormSelector = ({
@@ -18,44 +18,66 @@ const FormSelector = ({
         text: s.label,
     }));
 
+    const controlsWidth = { maxWidth: '920px', width: '100%', marginLeft: 'auto', marginRight: 'auto' };
+
     return (
         <Container style={{ paddingTop: '2rem' }}>
-            <Grid container>
-                <Grid.Row>
-                    <Header as='h1' className='sectionHeader'>
-                        {appName}
-                        <Header.Subheader>{appSubtitle}</Header.Subheader>
-                    </Header>
-                </Grid.Row>
-                <Grid.Row>
-                    <Grid.Column mobile={16} tablet={8} computer={8}>
-                        <Button.Group fluid size='large'>
-                            {formTypes.map((ft) => (
-                                <Button
-                                    key={ft.key}
-                                    color={activeFormType === ft.key ? 'blue' : undefined}
-                                    active={activeFormType === ft.key}
-                                    onClick={() => onSelectFormType(ft.key)}
-                                    icon={ft.icon}
-                                    content={ft.label}
-                                />
-                            ))}
-                        </Button.Group>
-                    </Grid.Column>
-                    <Grid.Column mobile={16} tablet={8} computer={8}>
-                        <Form>
-                            <Form.Field
-                                control={Select}
-                                label='Site'
-                                options={siteOptions}
-                                value={activeSite}
-                                onChange={(e, { value }) => onSelectSite(value)}
-                                placeholder='Select site'
+            <div style={controlsWidth}>
+                <Header as='h1' className='sectionHeader' textAlign='center'>
+                    {appName}
+                    <Header.Subheader>{appSubtitle}</Header.Subheader>
+                </Header>
+
+                <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+                    <Button.Group fluid size='huge'>
+                        {formTypes.map((ft) => (
+                            <Button
+                                key={ft.key}
+                                color={activeFormType === ft.key ? 'blue' : undefined}
+                                active={activeFormType === ft.key}
+                                onClick={() => onSelectFormType(ft.key)}
+                                icon={ft.icon}
+                                content={ft.label}
                             />
+                        ))}
+                    </Button.Group>
+                </div>
+
+                <div
+                    style={{
+                        marginTop: '1.35rem',
+                        display: 'flex',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <Segment
+                        secondary
+                        padded
+                        style={{
+                            margin: 0,
+                            width: '100%',
+                            maxWidth: 'min(100%, 28rem)',
+                            textAlign: 'left',
+                            borderRadius: '0.28571429rem',
+                        }}
+                    >
+                        <Form size='large'>
+                            <Form.Field style={{ marginBottom: 0 }}>
+                                <label>Site</label>
+                                <Select
+                                    selection
+                                    fluid
+                                    options={siteOptions}
+                                    value={activeSite}
+                                    onChange={(e, { value }) => onSelectSite(value)}
+                                    placeholder='Choose site…'
+                                    aria-label='Site: open list to choose a location'
+                                />
+                            </Form.Field>
                         </Form>
-                    </Grid.Column>
-                </Grid.Row>
-            </Grid>
+                    </Segment>
+                </div>
+            </div>
         </Container>
     );
 };
