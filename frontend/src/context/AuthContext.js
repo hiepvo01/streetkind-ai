@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import { fetchMe } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -16,12 +17,10 @@ export const AuthProvider = ({ children }) => {
             setUser(firebaseUser);
             if (firebaseUser) {
                 try {
-                    const res = await fetch(`/api/user/${firebaseUser.uid}`);
-                    if (res.ok) {
-                        setProfile(await res.json());
-                    }
+                    setProfile(await fetchMe());
                 } catch (e) {
                     console.error('Failed to fetch profile:', e);
+                    setProfile(null);
                 }
             } else {
                 setProfile(null);

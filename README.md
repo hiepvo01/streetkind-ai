@@ -99,7 +99,7 @@ pytest tests/e2e/ -v --headed     # watch the browser
 streetkind-ai/
   app/                              # FastAPI backend
     config.py                       # Config loader (reads config/ folder)
-    routes.py                       # API endpoints (/config, /extract, /submit, /dashboard, /user)
+    routes.py                       # API endpoints (/config, /extract, /submit, /dashboard, /me)
     schemas/                        # Pydantic models (incident, client, safebase, combined)
     services/
       ai_extractor.py               # Claude tool_use structured output
@@ -162,6 +162,6 @@ firebase auth:import users.json --project streetkind-app-dev
 | `/api/extract` | POST | Voice transcript -> AI structured form data |
 | `/api/submit` | POST | Submit form data to Firebase |
 | `/api/dashboard` | GET | Dashboard impact statistics |
-| `/api/user/{uid}` | GET | User profile from RTDB |
+| `/api/me` | GET | Authenticated user profile (requires `Authorization: Bearer <Firebase ID token>`) |
 | `/api/health` | GET | Health check |
 | `/docs` | GET | Auto-generated API documentation |
