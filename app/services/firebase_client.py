@@ -12,6 +12,8 @@ from ..config import get_form_type_config
 
 
 _app = None
+_users_cache_data: dict[str, dict] | None = None
+_users_cache_fetched_at: float | None = None
 
 
 def _init_firebase():
@@ -262,10 +264,27 @@ def delete_incident(form_id: str) -> None:
 
 
 def get_all_users() -> dict[str, dict]:
-    """Return every user node as {uid: profile_dict}."""
+    """
+    Return every user node as {uid: profile_dict}.
+
+    Cached for a short TTL to avoid downloading the full users tree on every
+    hierarchy-protected request.
+    """
     _init_firebase()
-    data = db.reference("users").get()
-    return data or {}
+    global _users_cache_data, _users_cache_fetched_at
+
+    ttl_s = int(os.getenv("USERS_CACHE_TTL_SECONDS", "30"))
+    if ttl_s > 0 and _users_cache_data is not None and _users_cache_fetched_at is not None:
+        if (time.time() - _users_cache_fetched_at) < ttl_s:
+            return _users_cache_data
+
+    data = db.reference("users").get() or {}
+
+    if ttl_s > 0:
+        _users_cache_data = data
+        _users_cache_fetched_at = time.time()
+
+    return data
 
 
 def get_direct_reports(uid: str, all_users: dict[str, dict] | None = None) -> list[dict]:
