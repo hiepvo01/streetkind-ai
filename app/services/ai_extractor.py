@@ -19,18 +19,26 @@ _client = None
 
 
 def _get_client():
-    """Microsoft Foundry–hosted Claude via Anthropic-compatible Messages API."""
+    """Microsoft Foundry-hosted Claude via Anthropic-compatible Messages API."""
     global _client
     if _client is None:
         api_key = os.getenv("ANTHROPIC_FOUNDRY_API_KEY")
         base_url = os.getenv("ANTHROPIC_FOUNDRY_BASE_URL")
         resource = os.getenv("ANTHROPIC_FOUNDRY_RESOURCE")
+        if not api_key:
+            raise RuntimeError(
+                "ANTHROPIC_FOUNDRY_API_KEY is not set. "
+                "If you have ANTHROPIC_API_KEY in your .env, rename it - "
+                "this project now uses Microsoft Foundry (see .env.example)."
+            )
+        if not (base_url or resource):
+            raise RuntimeError(
+                "Set ANTHROPIC_FOUNDRY_BASE_URL or ANTHROPIC_FOUNDRY_RESOURCE in your .env."
+            )
         if base_url:
             _client = AnthropicFoundry(api_key=api_key, base_url=base_url)
-        elif resource:
-            _client = AnthropicFoundry(api_key=api_key, resource=resource)
         else:
-            _client = AnthropicFoundry(api_key=api_key)
+            _client = AnthropicFoundry(api_key=api_key, resource=resource)
     return _client
 
 
