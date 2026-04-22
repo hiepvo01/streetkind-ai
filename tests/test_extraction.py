@@ -1,16 +1,25 @@
 """
 Tests for AI extraction service.
 Run with: pytest tests/test_extraction.py -v
-Requires ANTHROPIC_API_KEY in environment.
+Requires Microsoft Foundry credentials in the environment.
 """
 
 import os
 import pytest
 
-# Skip all tests if no API key
+
+def _foundry_configured() -> bool:
+    if not os.getenv("ANTHROPIC_FOUNDRY_API_KEY"):
+        return False
+    return bool(
+        os.getenv("ANTHROPIC_FOUNDRY_BASE_URL")
+        or os.getenv("ANTHROPIC_FOUNDRY_RESOURCE")
+    )
+
+
 pytestmark = pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set",
+    not _foundry_configured(),
+    reason="Set ANTHROPIC_FOUNDRY_API_KEY and ANTHROPIC_FOUNDRY_BASE_URL or ANTHROPIC_FOUNDRY_RESOURCE",
 )
 
 

@@ -7,7 +7,9 @@ All prompts and config are loaded from config/ files - not hardcoded here.
 """
 
 import os
-import anthropic
+
+from anthropic import AnthropicFoundry
+
 from ..config import get_app_config, get_incident_prompt, get_safebase_prompt
 from ..schemas.combined_incident_schema import CombinedIncidentSchema
 from ..schemas.safebase_schema import SafeBaseFormSchema
@@ -17,9 +19,18 @@ _client = None
 
 
 def _get_client():
+    """Microsoft Foundry–hosted Claude via Anthropic-compatible Messages API."""
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        api_key = os.getenv("ANTHROPIC_FOUNDRY_API_KEY")
+        base_url = os.getenv("ANTHROPIC_FOUNDRY_BASE_URL")
+        resource = os.getenv("ANTHROPIC_FOUNDRY_RESOURCE")
+        if base_url:
+            _client = AnthropicFoundry(api_key=api_key, base_url=base_url)
+        elif resource:
+            _client = AnthropicFoundry(api_key=api_key, resource=resource)
+        else:
+            _client = AnthropicFoundry(api_key=api_key)
     return _client
 
 

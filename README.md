@@ -28,7 +28,7 @@ See [FEATURES.md](FEATURES.md) for full details.
 |-----------|-----------|
 | Backend | FastAPI (Python) |
 | Frontend | React 18.2 + Semantic UI React 2.1.4 |
-| AI | Anthropic Claude API (tool_use structured output) |
+| AI | Claude via Microsoft Foundry (Anthropic Messages API, tool_use structured output) |
 | Auth | Firebase Authentication |
 | Database | Firebase Realtime Database (existing SKSSIR) |
 | Speech | Web Speech API (Chrome/Edge) |
@@ -39,7 +39,7 @@ See [FEATURES.md](FEATURES.md) for full details.
 ### Prerequisites
 - Conda (Anaconda or Miniconda)
 - Node.js 18+
-- Anthropic API key ([console.anthropic.com](https://console.anthropic.com))
+- Microsoft Foundry credentials for Claude ([Azure AI Foundry](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-claude)): API key plus base URL or resource name
 - Firebase service account key (from `streetkind-app-dev` project)
 
 ### Installation
@@ -53,7 +53,8 @@ conda activate streetkind-ai
 
 # Configure
 cp .env.example .env
-# Edit .env: add ANTHROPIC_API_KEY and Firebase paths
+# Edit .env: add ANTHROPIC_FOUNDRY_API_KEY and ANTHROPIC_FOUNDRY_BASE_URL
+#   (or ANTHROPIC_FOUNDRY_RESOURCE), plus Firebase paths if using submit
 
 # Frontend
 cd frontend && npm install && cd ..
