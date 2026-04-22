@@ -110,7 +110,7 @@ All configuration lives in `config/` as plain JSON and text files:
 |-----------|-----------|
 | Backend | FastAPI (Python), Uvicorn |
 | Frontend | React 18.2, Semantic UI React 2.1.4 |
-| AI | Anthropic Claude API (tool_use structured output) |
+| AI | Claude via Microsoft Foundry (tool_use structured output) |
 | Auth | Firebase Authentication (email/password) |
 | Database | Firebase Realtime Database |
 | Speech | Web Speech API (browser-native) |
