@@ -24,6 +24,7 @@ SAMPLE_INCIDENT_DATA = {
             "police": True, "ambulance": False, "fireRescue": False,
             "cctv": False, "rangers": False, "venueSecurity": False, "others": "",
         },
+        "quickNote": "E2E quick note for narrative context",
         "incidentDescription": "E2E test incident - should be deleted after test",
         "incidentOutcome": "E2E test outcome",
         "majorIncident": False,
@@ -128,6 +129,7 @@ class TestIncidentSubmission:
         incident = fb_db.reference(f"incidentForms/{key}").get()
         assert incident is not None, "Incident not found in Firebase"
         assert incident["incidentDescription"] == "E2E test incident - should be deleted after test"
+        assert incident.get("quickNote") == "E2E quick note for narrative context"
         assert incident["status"] == "completed"
         assert incident.get("createdBy") == "e2e-test-user"
         cleanup_keys.append(("incidentForms", key))

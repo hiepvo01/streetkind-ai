@@ -54,6 +54,7 @@ export function createEmptyIncidentFormData(defaultSite = '') {
             location: { address: '' },
             encounteredBy: {},
             otherServicesInvolved: {},
+            quickNote: '',
             incidentDescription: '',
             incidentOutcome: '',
             majorIncident: false,

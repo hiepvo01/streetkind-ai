@@ -148,6 +148,13 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
             <Divider />
 
             <Form.TextArea
+              label="Quick note"
+              placeholder="Short notes for context (saved with the incident; used when generating narrative)"
+              rows={4}
+              value={incident.quickNote || ''}
+              onChange={(e, { value }) => handleIncidentField('quickNote', value)}
+            />
+            <Form.TextArea
               label="Incident Description"
               placeholder="Describe what happened..."
               rows={8}

@@ -53,6 +53,7 @@ class IncidentFormSchema(BaseModel):
     location: Location = Location()
     encounteredBy: EncounteredBy = EncounteredBy()
     otherServicesInvolved: OtherServicesInvolved = OtherServicesInvolved()
+    quickNote: str = ""
     incidentDescription: str = ""
     incidentOutcome: str = ""
     majorIncident: bool = False
