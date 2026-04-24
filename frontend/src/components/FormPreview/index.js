@@ -33,27 +33,44 @@ const FormPreview = ({
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
 
+    /**
+     * Save transcript (and audio if enabled) after the incident was submitted.
+     * Returns a list of non-fatal warning strings - the incident itself is
+     * already saved, so transcript/audio failures must not look like submit
+     * failures but also must not be silent (the transcript is the audit trail).
+     */
     const persistTranscript = async (incidentId) => {
-        if (!transcript || !transcript.trim()) return;
+        const warnings = [];
+        if (!transcript || !transcript.trim()) return warnings;
+
+        let transcriptId;
         try {
-            const { transcriptId } = await createTranscript(
+            const res = await createTranscript(
                 incidentId,
                 transcript,
                 recording?.durationMs || 0,
                 extractionMeta || null,
             );
-            if (AUDIO_ENABLED && recording?.blob) {
-                try {
-                    await uploadTranscriptAudio(incidentId, transcriptId, recording.blob);
-                } catch (audioErr) {
-                    // Audio upload is best-effort - the text transcript is the
-                    // primary audit artefact. Surface a non-blocking warning.
-                    console.warn('Audio upload failed:', audioErr.message);
-                }
-            }
+            transcriptId = res.transcriptId;
         } catch (transcriptErr) {
-            console.warn('Transcript save failed:', transcriptErr.message);
+            warnings.push(
+                `Voice transcript was not saved: ${transcriptErr.message}. `
+                + `The incident report itself was saved successfully.`,
+            );
+            return warnings;
         }
+
+        if (AUDIO_ENABLED && recording?.blob && transcriptId) {
+            try {
+                await uploadTranscriptAudio(incidentId, transcriptId, recording.blob);
+            } catch (audioErr) {
+                warnings.push(
+                    `Audio recording upload failed: ${audioErr.message}. `
+                    + `The text transcript was saved.`,
+                );
+            }
+        }
+        return warnings;
     };
 
     const handleSubmit = async (status = 'completed') => {
@@ -63,7 +80,13 @@ const FormPreview = ({
         try {
             const result = await submitForm(formType, data, status);
             if (formType === 'incident' && result?.key) {
-                await persistTranscript(result.key);
+                const warnings = await persistTranscript(result.key);
+                if (warnings.length > 0) {
+                    setError(warnings.join(' '));
+                    // Don't call onSubmitted - keep the form visible so the user
+                    // can see the warning and decide whether to retry.
+                    return;
+                }
             }
             onSubmitted();
         } catch (e) {

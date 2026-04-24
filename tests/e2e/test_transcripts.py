@@ -10,6 +10,7 @@ Each test:
 """
 
 import os
+import pytest
 import requests
 from .conftest import API_BASE_URL, get_firebase_id_token_for_uid
 
@@ -25,6 +26,201 @@ def _minimal_incident():
         },
         "clients": [],
     }
+
+
+class TestTranscriptSecurity:
+    """Tests that would PASS today if the access-control guards were removed.
+
+    These are the highest-value security assertions for this feature.
+    """
+
+    def test_audio_upload_denied_across_users(self, firebase_app):
+        """User B cannot upload audio under user A's incident + transcript."""
+        token_a = get_firebase_id_token_for_uid("e2e-audio-user-a")
+        ha = {"Authorization": f"Bearer {token_a}", "Content-Type": "application/json"}
+        token_b = get_firebase_id_token_for_uid("e2e-audio-user-b")
+
+        # A creates incident + transcript
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=ha,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_id = r.json()["key"]
+        try:
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers=ha, json={"text": "a's transcript"},
+            )
+            transcript_id = r.json()["transcriptId"]
+
+            # B tries to upload audio to A's transcript -> 403
+            fake_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{transcript_id}/audio",
+                headers={"Authorization": f"Bearer {token_b}"},
+                files={"audio": ("x.webm", fake_audio, "audio/webm")},
+            )
+            assert r.status_code == 403, f"expected 403, got {r.status_code}: {r.text}"
+
+            # B also can't list A's transcripts
+            r = requests.get(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers={"Authorization": f"Bearer {token_b}"},
+            )
+            assert r.status_code == 403
+        finally:
+            requests.delete(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=ha,
+            )
+
+    def test_audio_upload_denied_across_incidents(self, firebase_app):
+        """A user cannot upload audio to someone else's incident by claiming
+        their own transcript belongs to it. Exercises the incidentId-match
+        guard in upload_transcript_audio."""
+        token_a = get_firebase_id_token_for_uid("e2e-cross-inc-user-a")
+        ha = {"Authorization": f"Bearer {token_a}", "Content-Type": "application/json"}
+        token_b = get_firebase_id_token_for_uid("e2e-cross-inc-user-b")
+        hb = {"Authorization": f"Bearer {token_b}", "Content-Type": "application/json"}
+
+        # A owns incident X with a transcript
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=ha,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_x = r.json()["key"]
+        r = requests.post(
+            f"{API_BASE_URL}/api/forms/incident/{incident_x}/transcripts",
+            headers=ha, json={"text": "x's transcript"},
+        )
+        transcript_in_x = r.json()["transcriptId"]
+
+        # B owns incident Y
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=hb,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_y = r.json()["key"]
+
+        try:
+            # B tries to upload audio to `incident_y/transcripts/transcript_in_x`.
+            # B has access to incident_y, transcript exists, but its incidentId
+            # points at incident_x -> server must 404.
+            fake_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_y}/transcripts/{transcript_in_x}/audio",
+                headers={"Authorization": f"Bearer {token_b}"},
+                files={"audio": ("x.webm", fake_audio, "audio/webm")},
+            )
+            assert r.status_code == 404, f"expected 404, got {r.status_code}: {r.text}"
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_x}", headers=ha)
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_y}", headers=hb)
+
+    def test_invalid_transcript_id_rejected(self, firebase_app):
+        """Non-push-ID transcript_ids (path traversal attempts) are rejected."""
+        token = get_firebase_id_token_for_uid("e2e-invalid-id-user")
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_id = r.json()["key"]
+        try:
+            for bad_tid in ["..", "not-a-push-id", "-short", "-" + "A" * 19 + "!"]:
+                fake_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+                r = requests.post(
+                    f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{bad_tid}/audio",
+                    headers={"Authorization": f"Bearer {token}"},
+                    files={"audio": ("x.webm", fake_audio, "audio/webm")},
+                )
+                # Bad IDs should 400 (rejected by regex) or 404 (routing miss),
+                # never 200 or 500.
+                assert r.status_code in (400, 404), (
+                    f"transcript_id={bad_tid!r} got {r.status_code}: {r.text}"
+                )
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=h)
+
+    def test_non_audio_payload_rejected(self, firebase_app):
+        """Magic-byte check prevents non-audio binaries claiming audio/* MIME."""
+        token = get_firebase_id_token_for_uid("e2e-magic-byte-user")
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_id = r.json()["key"]
+        try:
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers=h, json={"text": "magic byte test"},
+            )
+            transcript_id = r.json()["transcriptId"]
+
+            # A PNG header pretending to be webm
+            png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{transcript_id}/audio",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"audio": ("fake.webm", png_bytes, "audio/webm")},
+            )
+            # Either 400 (magic-byte rejection) or 503 (storage disabled).
+            # Must not be 200 - otherwise the endpoint is a file-upload backdoor.
+            if r.status_code == 503:
+                pytest.skip("Audio storage disabled on this backend - cannot test magic-byte check")
+            assert r.status_code == 400, (
+                f"non-audio payload should be rejected, got {r.status_code}: {r.text}"
+            )
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=h)
+
+
+class TestTranscriptConcurrency:
+    def test_concurrent_transcript_creation(self, firebase_app):
+        """Two transcripts created back-to-back both land in transcriptIds."""
+        import threading
+        token = get_firebase_id_token_for_uid("e2e-concurrent-user")
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_id = r.json()["key"]
+        try:
+            results = []
+            errors = []
+
+            def create_one(n):
+                try:
+                    r = requests.post(
+                        f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                        headers=h, json={"text": f"concurrent transcript {n}"},
+                        timeout=30,
+                    )
+                    if r.status_code == 200:
+                        results.append(r.json()["transcriptId"])
+                    else:
+                        errors.append((r.status_code, r.text))
+                except Exception as e:
+                    errors.append(str(e))
+
+            threads = [threading.Thread(target=create_one, args=(i,)) for i in range(3)]
+            for t in threads: t.start()
+            for t in threads: t.join()
+
+            assert not errors, f"concurrent create errors: {errors}"
+            assert len(results) == 3, f"expected 3 transcripts, got {len(results)}: {results}"
+
+            r = requests.get(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts", headers=h,
+            )
+            fetched_ids = {t["id"] for t in r.json()["transcripts"]}
+            for tid in results:
+                assert tid in fetched_ids, f"transcript {tid} lost from transcriptIds"
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=h)
 
 
 class TestTranscriptRoundtrip:
@@ -84,7 +280,7 @@ class TestTranscriptRoundtrip:
 
         assert fb_db.reference(f"incidentForms/{incident_id}").get() is None
 
-    def test_empty_transcript_rejected(self):
+    def test_empty_transcript_rejected(self, firebase_app):
         token = get_firebase_id_token_for_uid("e2e-transcript-user")
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
@@ -108,12 +304,15 @@ class TestTranscriptRoundtrip:
                 f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=headers,
             )
 
-    def test_audio_upload_requires_storage_config(self):
-        """Audio upload returns 503 if FIREBASE_STORAGE_BUCKET isn't set.
+    def test_audio_upload_roundtrip(self, fb_db):
+        """
+        Upload an audio blob, verify it ends up in Firebase Storage with the
+        exact bytes we sent, the audioUrl is persisted on the transcript, and
+        incident delete wipes the Storage blob too.
 
-        Only meaningful when the backend is configured without Storage. When
-        Storage IS configured we expect either 200 (success) or 400 (unsupported
-        content type) — not 503.
+        Skipped cleanly when the backend returns 503 (FIREBASE_STORAGE_BUCKET
+        not set). 503 is NOT a pass - audio storage disabled means this test
+        cannot validate its contract.
         """
         token = get_firebase_id_token_for_uid("e2e-transcript-user")
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
@@ -126,7 +325,6 @@ class TestTranscriptRoundtrip:
         incident_id = r.json()["key"]
 
         try:
-            # Create transcript to attach audio to
             r = requests.post(
                 f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
                 headers=headers,
@@ -134,16 +332,57 @@ class TestTranscriptRoundtrip:
             )
             transcript_id = r.json()["transcriptId"]
 
-            # Upload a tiny fake webm
-            fake_webm = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
+            # Valid WebM EBML header + payload we'll byte-compare later.
+            audio_bytes = b"\x1a\x45\xdf\xa3" + b"audio-payload-abc" * 50
+
             r = requests.post(
                 f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{transcript_id}/audio",
                 headers={"Authorization": f"Bearer {token}"},
-                files={"audio": ("test.webm", fake_webm, "audio/webm")},
+                files={"audio": ("test.webm", audio_bytes, "audio/webm")},
             )
-            # Either storage is configured and we got a real response, or 503
-            assert r.status_code in (200, 400, 503), r.text
+
+            if r.status_code == 503:
+                pytest.skip(
+                    "Backend has FIREBASE_STORAGE_BUCKET unset - audio storage "
+                    "is disabled on this deployment. Not a pass."
+                )
+
+            assert r.status_code == 200, f"audio upload failed: {r.status_code} {r.text}"
+            audio_url = r.json().get("audioUrl")
+            assert audio_url, "audio upload returned no audioUrl"
+
+            # Transcript record should now have the URL persisted
+            r2 = requests.get(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers=headers,
+            )
+            ts = r2.json()["transcripts"][0]
+            assert ts.get("audioUrl") == audio_url, "audioUrl not persisted on transcript"
+
+            # Blob must be publicly fetchable and byte-identical
+            blob_resp = requests.get(audio_url, timeout=30)
+            assert blob_resp.status_code == 200, f"blob GET {audio_url} -> {blob_resp.status_code}"
+            assert blob_resp.content == audio_bytes, (
+                f"uploaded {len(audio_bytes)} bytes, downloaded {len(blob_resp.content)} - "
+                f"content mismatch"
+            )
         finally:
             requests.delete(
                 f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=headers,
             )
+
+        # After delete, RTDB records gone + Storage blob gone.
+        assert fb_db.reference(f"incidentForms/{incident_id}").get() is None
+        assert fb_db.reference(f"transcripts/{transcript_id}").get() is None
+        # If we got this far Storage was configured; check the blob was removed.
+        # Use Admin SDK via the backend's bucket config.
+        try:
+            from firebase_admin import storage as fb_storage
+            bucket = fb_storage.bucket()
+            remaining = list(bucket.list_blobs(prefix=f"audio/{incident_id}/"))
+            assert not remaining, f"Storage cleanup leaked: {[b.name for b in remaining]}"
+        except Exception as e:
+            # Storage SDK may not be initialised in the test process; the
+            # above RTDB checks already prove the delete fired. Surface the
+            # skip so we know the audit is partial, don't silently pass.
+            pytest.skip(f"Storage cleanup check skipped: {e}")

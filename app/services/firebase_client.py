@@ -4,11 +4,25 @@ Writes extracted form data to the existing SKSSIR database.
 Database paths and schema metadata are read from config/ files.
 """
 
+import logging
 import os
+import re
 import time
 import firebase_admin
 from firebase_admin import credentials, db, storage
 from ..config import get_form_type_config
+
+logger = logging.getLogger(__name__)
+
+# Push IDs are URL-safe base64: exactly 20 chars starting with '-'.
+# Re-validated here (in addition to the route layer) as defense in depth:
+# any caller of upload_audio / delete_transcripts_for_incident gets the same guarantee.
+_PUSH_ID_RE = re.compile(r"^-[A-Za-z0-9_-]{19}$")
+
+
+def _assert_push_id(value: str, name: str) -> None:
+    if not isinstance(value, str) or not _PUSH_ID_RE.match(value):
+        raise ValueError(f"Invalid {name}: {value!r}")
 
 
 _app = None
@@ -423,38 +437,134 @@ def get_transcripts_for_incident(incident_id: str) -> list[dict]:
     return transcripts
 
 
+_EXT_BY_CONTENT_TYPE = [
+    ("webm", "webm"),
+    ("mp4", "m4a"),
+    ("m4a", "m4a"),
+    ("aac", "m4a"),
+    ("ogg", "ogg"),
+    ("mpeg", "mp3"),
+    ("mp3", "mp3"),
+]
+
+
+def _audio_ext_for(content_type: str) -> str:
+    ct = (content_type or "").lower()
+    for needle, ext in _EXT_BY_CONTENT_TYPE:
+        if needle in ct:
+            return ext
+    return "bin"
+
+
 def upload_audio(incident_id: str, transcript_id: str, audio_bytes: bytes, content_type: str) -> str:
     """
-    Upload an audio blob to Storage at audio/{incidentId}/{transcriptId}.webm
-    and return a long-lived signed URL so the frontend can play it back.
+    Upload an audio blob to Storage at audio/{incidentId}/{transcriptId}.{ext}
+    and return a long-lived public URL so the frontend can play it back.
+
+    IDs are re-validated against the push-ID regex even though the route layer
+    already checks them - defense in depth so future callers can't accidentally
+    introduce a path-traversal hole.
     """
+    _assert_push_id(incident_id, "incident_id")
+    _assert_push_id(transcript_id, "transcript_id")
     _init_firebase()
 
     bucket = storage.bucket()
-    ext = "webm" if "webm" in content_type else ("m4a" if "mp4" in content_type else "bin")
+    ext = _audio_ext_for(content_type)
     blob = bucket.blob(f"audio/{incident_id}/{transcript_id}.{ext}")
     blob.upload_from_string(audio_bytes, content_type=content_type)
     blob.make_public()
     return blob.public_url
 
 
-def delete_transcripts_for_incident(incident_id: str) -> None:
-    """Remove all transcripts + audio blobs linked to an incident. Used on incident delete."""
+def delete_audio_blob(incident_id: str, transcript_id: str) -> bool:
+    """
+    Best-effort deletion of the audio blob(s) for a single transcript.
+    Returns True when a blob was deleted (or none existed), False on error.
+    Used for compensation when an audio upload partially fails.
+    """
+    try:
+        _assert_push_id(incident_id, "incident_id")
+        _assert_push_id(transcript_id, "transcript_id")
+        bucket = storage.bucket()
+        count = 0
+        # The extension is content-type dependent, so delete anything matching
+        # the transcript-id prefix under this incident.
+        for blob in bucket.list_blobs(prefix=f"audio/{incident_id}/"):
+            if blob.name.startswith(f"audio/{incident_id}/{transcript_id}."):
+                blob.delete()
+                count += 1
+        return True
+    except Exception as e:
+        logger.warning(
+            "Failed to delete audio blob for transcript=%s incident=%s: %s",
+            transcript_id, incident_id, e,
+        )
+        return False
+
+
+def delete_transcripts_for_incident(incident_id: str) -> dict:
+    """
+    Remove all transcripts + audio blobs linked to an incident.
+
+    Order: Storage first, then RTDB. This way the RTDB transcriptIds index is
+    still valid while we enumerate Storage, and RTDB pointers survive a Storage
+    failure so the blobs can be retried rather than orphaned.
+
+    Returns a summary dict so callers (and tests) can see whether cleanup was
+    complete. Does not raise - individual failures are logged and aggregated.
+    """
     _init_firebase()
 
+    summary = {
+        "storage_blobs_deleted": 0,
+        "storage_blobs_failed": 0,
+        "transcripts_deleted": 0,
+        "transcripts_failed": 0,
+        "storage_list_error": None,
+    }
+
     incident = db.reference(f"incidentForms/{incident_id}").get() or {}
-    transcript_ids = incident.get("transcriptIds", []) or []
+    transcript_ids = [t for t in (incident.get("transcriptIds") or []) if isinstance(t, str)]
 
-    for tid in transcript_ids:
-        if not isinstance(tid, str):
-            continue
-        db.reference(f"transcripts/{tid}").delete()
-
-    # Best-effort storage cleanup. Don't fail the delete if storage is
-    # misconfigured - the DB records are what matters for the audit trail.
+    # 1. Storage cleanup first, while RTDB still has the pointers for recovery.
     try:
         bucket = storage.bucket()
-        for blob in bucket.list_blobs(prefix=f"audio/{incident_id}/"):
-            blob.delete()
-    except Exception:
-        pass
+        # List once, track what we tried to delete.
+        blobs = list(bucket.list_blobs(prefix=f"audio/{incident_id}/"))
+        for blob in blobs:
+            try:
+                blob.delete()
+                summary["storage_blobs_deleted"] += 1
+            except Exception as e:
+                summary["storage_blobs_failed"] += 1
+                logger.warning(
+                    "Failed to delete storage blob %s for incident=%s: %s",
+                    blob.name, incident_id, e,
+                )
+    except Exception as e:
+        # No storageBucket configured, or the enumeration itself failed.
+        # Record it so callers / audits can see the gap. Don't abort RTDB cleanup.
+        summary["storage_list_error"] = str(e)
+        logger.info(
+            "Storage cleanup skipped for incident=%s: %s", incident_id, e,
+        )
+
+    # 2. RTDB transcript records.
+    for tid in transcript_ids:
+        try:
+            db.reference(f"transcripts/{tid}").delete()
+            summary["transcripts_deleted"] += 1
+        except Exception as e:
+            summary["transcripts_failed"] += 1
+            logger.warning(
+                "Failed to delete transcripts/%s for incident=%s: %s",
+                tid, incident_id, e,
+            )
+
+    if summary["storage_blobs_failed"] or summary["transcripts_failed"]:
+        logger.error(
+            "Partial cleanup for incident=%s: %s", incident_id, summary,
+        )
+
+    return summary

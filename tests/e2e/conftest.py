@@ -58,7 +58,11 @@ def get_firebase_id_token_for_uid(uid: str = "e2e-test-user") -> str:
 def firebase_app():
     """Initialise the Firebase Admin SDK once per test session."""
     cred = credentials.Certificate(CRED_PATH)
-    app = firebase_admin.initialize_app(cred, {"databaseURL": DB_URL})
+    init_options = {"databaseURL": DB_URL}
+    bucket = os.environ.get("FIREBASE_STORAGE_BUCKET")
+    if bucket:
+        init_options["storageBucket"] = bucket
+    app = firebase_admin.initialize_app(cred, init_options)
     yield app
     firebase_admin.delete_app(app)
 

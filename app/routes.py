@@ -261,6 +261,28 @@ def create_transcript(
     return {"transcriptId": transcript_id}
 
 
+_AUDIO_MAGIC = {
+    b"\x1a\x45\xdf\xa3": "webm/matroska EBML",  # WebM + MKV
+    b"OggS": "ogg",
+    b"ID3": "mp3 (with ID3 tag)",
+    b"\xff\xfb": "mp3 (MPEG frame)",
+    b"\xff\xf3": "mp3 (MPEG frame)",
+    b"\xff\xf2": "mp3 (MPEG frame)",
+}
+
+
+def _looks_like_audio(head: bytes) -> bool:
+    """Reject payloads whose first bytes don't match any allowed audio magic.
+
+    MP4/M4A uses an ftyp box at bytes 4-8, so we handle it separately.
+    """
+    if not head:
+        return False
+    if head[4:8] == b"ftyp":
+        return True  # MP4 / M4A / M4B
+    return any(head.startswith(prefix) for prefix in _AUDIO_MAGIC)
+
+
 @router.post("/api/forms/incident/{form_id}/transcripts/{transcript_id}/audio")
 async def upload_transcript_audio(
     form_id: str,
@@ -269,8 +291,11 @@ async def upload_transcript_audio(
     caller_uid: str = Depends(get_current_uid),
 ):
     """Upload an audio blob for an existing transcript. Updates transcripts/{id}/audioUrl."""
+    import logging
     from firebase_admin import db as _db
-    from .services.firebase_client import upload_audio
+    from .services.firebase_client import upload_audio, delete_audio_blob
+
+    _log = logging.getLogger(__name__)
 
     _check_incident_access(form_id, caller_uid)
 
@@ -296,13 +321,32 @@ async def upload_transcript_audio(
     if not body:
         raise HTTPException(status_code=400, detail="Empty audio blob")
 
+    # Magic-byte check prevents the endpoint from becoming a file-upload backdoor
+    # for arbitrary binary content that only *claims* to be audio.
+    if not _looks_like_audio(body[:16]):
+        raise HTTPException(
+            status_code=400,
+            detail="Payload does not look like a supported audio container",
+        )
+
     # Make sure the transcript actually belongs to this incident before writing.
     existing = _db.reference(f"transcripts/{transcript_id}").get()
     if not existing or existing.get("incidentId") != form_id:
         raise HTTPException(status_code=404, detail="Transcript not found for this incident")
 
     url = upload_audio(form_id, transcript_id, body, content_type)
-    _db.reference(f"transcripts/{transcript_id}/audioUrl").set(url)
+    try:
+        _db.reference(f"transcripts/{transcript_id}/audioUrl").set(url)
+    except Exception as e:
+        # Compensate: the blob is already in Storage + made public. If we can't
+        # persist the URL on the transcript, delete the blob so it can't orphan
+        # as a publicly-readable file with no RTDB pointer.
+        _log.error(
+            "Failed to persist audioUrl for transcript=%s; compensating by deleting blob: %s",
+            transcript_id, e,
+        )
+        delete_audio_blob(form_id, transcript_id)
+        raise HTTPException(status_code=500, detail="Failed to persist audio URL")
     return {"audioUrl": url}
 
 
