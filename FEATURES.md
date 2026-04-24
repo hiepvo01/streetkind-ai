@@ -137,7 +137,7 @@ All tests auto-clean test data from Firebase after each run.
 
 ## Known Limitations
 
-- **Auth migration pending**: Only 3 demo users can login. The 66 original SKSSIR users exist in the database but their Firebase Auth credentials were not migrated from the old `tk-foundation` project. Migration requires `firebase auth:export/import` CLI access to the old project.
+- **Auth migration pending**: Only 3 demo users can login. The 66 original SKSSIR users exist in the database but their Firebase Auth credentials were not migrated from the old `sk-foundation` project. Migration requires `firebase auth:export/import` CLI access to the old project.
 - **No offline mode**: Requires internet for Claude API and Firebase
 - **Web Speech API**: Only works in Chrome and Edge browsers
 - **Client form Phase 2**: AI extracts client data but some complex fields (consciousness level, lost property) may need manual review

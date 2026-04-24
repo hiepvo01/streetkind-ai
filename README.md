@@ -175,11 +175,11 @@ All config in `config/` as plain JSON — no code changes needed:
 
 ## Auth Migration Note
 
-The database was migrated from the old `tk-foundation` Firebase project. The 66 original user records exist in the RTDB but their Firebase Auth credentials were **not migrated**. Currently only 3 demo accounts can login. To import the original users:
+The database was migrated from the old `sk-foundation` Firebase project. The 66 original user records exist in the RTDB but their Firebase Auth credentials were **not migrated**. Currently only 3 demo accounts can login. To import the original users:
 
 ```bash
 # Requires Firebase CLI access to the old project
-firebase auth:export users.json --project tk-foundation
+firebase auth:export users.json --project sk-foundation
 firebase auth:import users.json --project streetkind-app-dev
 ```
 

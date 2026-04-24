@@ -16,7 +16,7 @@ def _minimal_valid_form_data():
             "location": {"address": "Town Hall steps"},
             "encounteredBy": {
                 "generalPublic": True,
-                "tkAmbassador": False,
+                    "skAmbassador": False,
                 "cctv": False,
                 "self": False,
                 "friend": False,

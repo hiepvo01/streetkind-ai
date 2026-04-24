@@ -8,7 +8,7 @@ from typing import Optional
 
 
 class EncounteredBy(BaseModel):
-    # Accept legacy "tkAmbassador" on read but always serialise as "skAmbassador".
+    # Legacy RTDB may use tkAmbassador; accept on read and always serialise skAmbassador.
     skAmbassador: bool = Field(
         False,
         validation_alias=AliasChoices("skAmbassador", "tkAmbassador"),
