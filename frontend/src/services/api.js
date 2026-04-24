@@ -62,6 +62,23 @@ export const generateIncidentNarrative = async (formData) => {
     return response.json();
 };
 
+export const reverseGeocode = async (lat, lon) => {
+    const headers = await getAuthHeaders();
+    const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) }).toString();
+    const response = await fetch(`/api/geocode/reverse?${qs}`, { headers });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        let msg = err.detail ?? 'Reverse geocoding failed';
+        if (Array.isArray(msg)) {
+            msg = msg.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join('; ');
+        }
+        throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    }
+
+    return response.json();
+};
+
 export const submitForm = async (formType, formData, status = 'completed') => {
     const headers = await getAuthHeaders();
     const response = await fetch(apiUrl('/api/submit'), {

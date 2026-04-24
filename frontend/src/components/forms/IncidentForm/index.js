@@ -12,7 +12,7 @@ import ClientForm from '../ClientForm';
 import EncounteredBySection from './EncounteredBySection';
 import OtherServicesSection from './OtherServicesSection';
 import { createBlankClient } from '../../../utils/initialFormData';
-import { generateIncidentNarrative } from '../../../services/api';
+import { generateIncidentNarrative, reverseGeocode } from '../../../services/api';
 
 const NARRATIVE_OVERWRITE_CONFIRM_LEN = 40;
 
@@ -29,6 +29,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   // data = { incident: {...}, clients: [...] }
   const [magicLoading, setMagicLoading] = useState(false);
   const [magicError, setMagicError] = useState(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState(null);
 
   const incident = data.incident || {};
   const clients = data.clients || [];
@@ -45,6 +47,53 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
       ...data,
       incident: { ...incident, location: { ...location, address: value } },
     });
+  };
+
+  const handleUseMyLocation = async () => {
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported in this browser.');
+      return;
+    }
+    setGeoLoading(true);
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        });
+      });
+
+      const lat = pos?.coords?.latitude;
+      const lon = pos?.coords?.longitude;
+      if (typeof lat !== 'number' || typeof lon !== 'number') {
+        throw new Error('Could not read coordinates from your device.');
+      }
+
+      const res = await reverseGeocode(lat, lon);
+      onChange({
+        ...data,
+        incident: {
+          ...incident,
+          location: {
+            ...location,
+            address: res.address ?? location.address ?? '',
+            latitude: res.latitude ?? lat,
+            longitude: res.longitude ?? lon,
+          },
+        },
+      });
+    } catch (e) {
+      const msg =
+        e?.code === 1 ? 'Location permission denied.' :
+        e?.code === 2 ? 'Location unavailable.' :
+        e?.code === 3 ? 'Location request timed out.' :
+        (e?.message || 'Failed to use location.');
+      setGeoError(msg);
+    } finally {
+      setGeoLoading(false);
+    }
   };
 
   const handleEncounteredByChange = (updated) => {
@@ -125,6 +174,22 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
                 onChange={(e, { value }) => handleLocationChange(value)}
               />
             </Form.Group>
+            {geoError && (
+              <Message
+                error
+                content={geoError}
+                onDismiss={() => setGeoError(null)}
+              />
+            )}
+            <Button
+              type="button"
+              icon="location arrow"
+              content="Use my location"
+              loading={geoLoading}
+              disabled={geoLoading}
+              onClick={handleUseMyLocation}
+              style={{ marginBottom: '1rem' }}
+            />
 
             <Divider />
 

@@ -261,6 +261,38 @@ def post_incident_narrative(
         ) from e
 
 
+@router.get("/api/geocode/reverse")
+def reverse_geocode_route(
+    lat: float,
+    lon: float,
+    caller_uid: str = Depends(get_current_uid),
+):
+    """
+    Reverse geocode coordinates using a Nominatim-backed proxy.
+
+    Authenticated to prevent anonymous abuse. Applies a small in-memory cache and
+    rate limiting. Does not write Firebase.
+    """
+    from .services.geocode import reverse_geocode
+
+    # Identify ourselves per Nominatim usage policy.
+    # Prefer env override so deployments can set a valid contact string.
+    ua = os.getenv("NOMINATIM_USER_AGENT", "Streetkind-AI/0.1 (contact: ops@streetkind.example)")
+
+    try:
+        res = reverse_geocode(lat=lat, lon=lon, caller_key=caller_uid, user_agent=ua)
+    except ValueError as e:
+        raise HTTPException(status_code=429 if "Rate limit" in str(e) else 502, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Reverse geocode failed: {str(e)}") from e
+
+    return {
+        "address": res.address,
+        "latitude": res.latitude,
+        "longitude": res.longitude,
+    }
+
+
 @router.get("/api/health")
 def health():
     return {"status": "ok"}

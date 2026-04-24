@@ -51,7 +51,7 @@ export function createEmptyIncidentFormData(defaultSite = '') {
         incident: {
             teamLeaderName: '',
             site: defaultSite || '',
-            location: { address: '' },
+            location: { address: '', latitude: null, longitude: null },
             encounteredBy: {},
             otherServicesInvolved: {},
             quickNote: '',
