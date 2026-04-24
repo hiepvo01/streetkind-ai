@@ -7,7 +7,7 @@ then verifies the data landed correctly in Firebase.
 
 import requests
 from playwright.sync_api import Page, expect
-from .conftest import do_login, BASE_URL, DEMO_VOLUNTEER, get_firebase_id_token_for_uid
+from .conftest import do_login, BASE_URL, DEMO_VOLUNTEER, API_BASE_URL, get_firebase_id_token_for_uid
 
 SAMPLE_INCIDENT_DATA = {
     "incident": {
@@ -111,7 +111,7 @@ class TestIncidentSubmission:
         """Submit an incident via the API, verify it in Firebase, then clean up."""
         id_token = get_firebase_id_token_for_uid("e2e-test-user")
         resp = requests.post(
-            "http://localhost:8000/api/submit",
+            f"{API_BASE_URL}/api/submit",
             headers={
                 "Authorization": f"Bearer {id_token}",
                 "Content-Type": "application/json",

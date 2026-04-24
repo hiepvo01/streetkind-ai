@@ -18,6 +18,8 @@ DEFAULT_CRED_PATH = "firebase-service-account.json"
 CRED_PATH = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH", DEFAULT_CRED_PATH)
 DB_URL = "https://streetkind-app-dev-default-rtdb.firebaseio.com"
 BASE_URL = "http://localhost:3000"
+# API base URL - override with API_BASE_URL env var to run tests against prod
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
 
 DEMO_VOLUNTEER = {"email": "volunteer@streetkind.demo", "password": "streetkind123"}
 DEMO_ADMIN = {"email": "admin@streetkind.demo", "password": "streetkind123"}
