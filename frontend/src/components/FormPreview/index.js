@@ -15,6 +15,8 @@ import { submitForm, createTranscript, uploadTranscriptAudio } from '../../servi
 import IncidentForm from '../forms/IncidentForm';
 import SafeBaseForm from '../forms/SafeBaseForm';
 
+const AUDIO_ENABLED = process.env.REACT_APP_ENABLE_AUDIO === '1';
+
 const FormPreview = ({
     formType,
     data,
@@ -40,7 +42,7 @@ const FormPreview = ({
                 recording?.durationMs || 0,
                 extractionMeta || null,
             );
-            if (recording?.blob) {
+            if (AUDIO_ENABLED && recording?.blob) {
                 try {
                     await uploadTranscriptAudio(incidentId, transcriptId, recording.blob);
                 } catch (audioErr) {

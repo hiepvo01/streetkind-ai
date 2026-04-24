@@ -14,6 +14,8 @@ import PropTypes from 'prop-types';
 
 import { extractForm } from '../../services/api';
 
+const AUDIO_ENABLED = process.env.REACT_APP_ENABLE_AUDIO === '1';
+
 const PREFERRED_AUDIO_TYPES = [
     'audio/webm;codecs=opus',
     'audio/webm',
@@ -73,6 +75,9 @@ const VoiceInput = ({
     }, [stopAudioCapture]);
 
     const startAudioCapture = useCallback(async () => {
+        if (!AUDIO_ENABLED) {
+            return; // audio storage disabled at build time (REACT_APP_ENABLE_AUDIO)
+        }
         if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
             return; // speech-to-text only; no audio storage on this browser
         }

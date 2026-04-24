@@ -277,6 +277,12 @@ async def upload_transcript_audio(
     if not _RTDB_PUSH_ID_RE.match(transcript_id):
         raise HTTPException(status_code=400, detail="Invalid transcript_id")
 
+    if not os.getenv("FIREBASE_STORAGE_BUCKET"):
+        raise HTTPException(
+            status_code=503,
+            detail="Audio storage is not configured on this deployment",
+        )
+
     content_type = audio.content_type or ""
     if content_type.split(";")[0].strip() not in {t.split(";")[0] for t in _ALLOWED_AUDIO_TYPES}:
         raise HTTPException(status_code=400, detail=f"Unsupported audio type: {content_type}")
