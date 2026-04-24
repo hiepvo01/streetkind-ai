@@ -419,7 +419,13 @@ def push_transcript(
 
 
 def get_transcripts_for_incident(incident_id: str) -> list[dict]:
-    """Fetch all transcripts linked to the given incident, ordered by createdDate."""
+    """
+    Fetch all transcripts linked to the given incident, ordered by createdDate.
+
+    For each transcript with an `audioPath`, attach a freshly-signed `audioUrl`
+    so the frontend can play it back. Existing legacy records that already have
+    an `audioUrl` stored (from the old public-URL scheme) are returned as-is.
+    """
     _init_firebase()
 
     incident = db.reference(f"incidentForms/{incident_id}").get() or {}
@@ -430,8 +436,15 @@ def get_transcripts_for_incident(incident_id: str) -> list[dict]:
         if not isinstance(tid, str):
             continue
         t = db.reference(f"transcripts/{tid}").get()
-        if t:
-            transcripts.append({"id": tid, **t})
+        if not t:
+            continue
+
+        # Decorate with a fresh signed URL if this is a new-style record.
+        audio_path = t.get("audioPath")
+        if audio_path:
+            t = {**t, "audioUrl": signed_audio_url(audio_path) or ""}
+
+        transcripts.append({"id": tid, **t})
 
     transcripts.sort(key=lambda t: t.get("createdDate", 0))
     return transcripts
@@ -459,7 +472,9 @@ def _audio_ext_for(content_type: str) -> str:
 def upload_audio(incident_id: str, transcript_id: str, audio_bytes: bytes, content_type: str) -> str:
     """
     Upload an audio blob to Storage at audio/{incidentId}/{transcriptId}.{ext}
-    and return a long-lived public URL so the frontend can play it back.
+    and return the bucket-relative blob path. Blobs stay PRIVATE - playback
+    goes via short-lived signed URLs generated at read time by
+    signed_audio_url().
 
     IDs are re-validated against the push-ID regex even though the route layer
     already checks them - defense in depth so future callers can't accidentally
@@ -471,10 +486,45 @@ def upload_audio(incident_id: str, transcript_id: str, audio_bytes: bytes, conte
 
     bucket = storage.bucket()
     ext = _audio_ext_for(content_type)
-    blob = bucket.blob(f"audio/{incident_id}/{transcript_id}.{ext}")
+    blob_path = f"audio/{incident_id}/{transcript_id}.{ext}"
+    blob = bucket.blob(blob_path)
     blob.upload_from_string(audio_bytes, content_type=content_type)
-    blob.make_public()
-    return blob.public_url
+    # No make_public() - audio is private, served via signed URLs on read.
+    return blob_path
+
+
+AUDIO_SIGNED_URL_TTL_SECONDS = int(os.getenv("AUDIO_SIGNED_URL_TTL_SECONDS", "3600"))
+
+
+def signed_audio_url(blob_path: str, ttl_seconds: int | None = None) -> str | None:
+    """
+    Return a short-lived GCS v4 signed URL for a stored audio blob, or None
+    if the blob is missing / Storage is unreachable. Callers must already have
+    authorised access to the containing incident - this function enforces
+    NOTHING; it only signs.
+    """
+    if not blob_path or not isinstance(blob_path, str):
+        return None
+    # Defence in depth: blob_path should always start with 'audio/' and
+    # contain only characters we'd expect (no ../, no absolute paths).
+    if not blob_path.startswith("audio/") or ".." in blob_path:
+        logger.warning("Refusing to sign suspicious blob_path: %r", blob_path)
+        return None
+
+    try:
+        _init_firebase()
+        from datetime import timedelta
+        bucket = storage.bucket()
+        blob = bucket.blob(blob_path)
+        ttl = ttl_seconds if ttl_seconds is not None else AUDIO_SIGNED_URL_TTL_SECONDS
+        return blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(seconds=ttl),
+            method="GET",
+        )
+    except Exception as e:
+        logger.warning("Failed to sign URL for %s: %s", blob_path, e)
+        return None
 
 
 def delete_audio_blob(incident_id: str, transcript_id: str) -> bool:

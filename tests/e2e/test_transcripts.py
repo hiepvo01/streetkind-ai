@@ -348,23 +348,49 @@ class TestTranscriptRoundtrip:
                 )
 
             assert r.status_code == 200, f"audio upload failed: {r.status_code} {r.text}"
-            audio_url = r.json().get("audioUrl")
-            assert audio_url, "audio upload returned no audioUrl"
+            upload_url = r.json().get("audioUrl")
+            assert upload_url, "audio upload returned no audioUrl"
 
-            # Transcript record should now have the URL persisted
+            # Audio URL must be a signed URL, not a permanent public URL.
+            # v4 signed URLs carry X-Goog-Signature + X-Goog-Algorithm query params.
+            assert "X-Goog-Signature" in upload_url, (
+                f"audioUrl is not a signed URL (public make_public leaked?): {upload_url[:200]}"
+            )
+
+            # The stored record should have `audioPath`, not a stored URL - proves
+            # we're not persisting a long-lived credential in the DB.
+            raw = fb_db.reference(f"transcripts/{transcript_id}").get() or {}
+            assert "audioPath" in raw, f"transcript missing audioPath: keys={list(raw.keys())}"
+            assert not raw.get("audioUrl"), (
+                f"transcript has stored audioUrl - should only be signed at read time: {raw.get('audioUrl')}"
+            )
+            blob_path = raw["audioPath"]
+            assert blob_path.startswith(f"audio/{incident_id}/"), blob_path
+
+            # List endpoint should return a freshly-signed URL (different signature query)
             r2 = requests.get(
                 f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
                 headers=headers,
             )
-            ts = r2.json()["transcripts"][0]
-            assert ts.get("audioUrl") == audio_url, "audioUrl not persisted on transcript"
+            list_item = r2.json()["transcripts"][0]
+            list_url = list_item.get("audioUrl")
+            assert list_url, "list endpoint did not include audioUrl"
+            assert "X-Goog-Signature" in list_url, f"list audioUrl not signed: {list_url[:200]}"
 
-            # Blob must be publicly fetchable and byte-identical
-            blob_resp = requests.get(audio_url, timeout=30)
-            assert blob_resp.status_code == 200, f"blob GET {audio_url} -> {blob_resp.status_code}"
+            # Signed URL must serve the exact uploaded bytes
+            blob_resp = requests.get(list_url, timeout=30)
+            assert blob_resp.status_code == 200, f"signed GET -> {blob_resp.status_code}"
             assert blob_resp.content == audio_bytes, (
-                f"uploaded {len(audio_bytes)} bytes, downloaded {len(blob_resp.content)} - "
-                f"content mismatch"
+                f"uploaded {len(audio_bytes)} bytes, downloaded {len(blob_resp.content)}"
+            )
+
+            # The same blob without a signature MUST be denied - proves audio is
+            # private and playback only works via signed URLs.
+            public_guess = f"https://storage.googleapis.com/{os.environ.get('FIREBASE_STORAGE_BUCKET', '')}/{blob_path}"
+            public_resp = requests.get(public_guess, timeout=20)
+            assert public_resp.status_code in (401, 403, 404), (
+                f"Blob is publicly readable without signature (privacy bug): "
+                f"{public_guess} -> {public_resp.status_code}"
             )
         finally:
             requests.delete(

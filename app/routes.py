@@ -334,20 +334,31 @@ async def upload_transcript_audio(
     if not existing or existing.get("incidentId") != form_id:
         raise HTTPException(status_code=404, detail="Transcript not found for this incident")
 
-    url = upload_audio(form_id, transcript_id, body, content_type)
+    blob_path = upload_audio(form_id, transcript_id, body, content_type)
     try:
-        _db.reference(f"transcripts/{transcript_id}/audioUrl").set(url)
+        # Store the blob PATH (not a URL). Signed URLs are generated on read.
+        _db.reference(f"transcripts/{transcript_id}/audioPath").set(blob_path)
     except Exception as e:
-        # Compensate: the blob is already in Storage + made public. If we can't
-        # persist the URL on the transcript, delete the blob so it can't orphan
-        # as a publicly-readable file with no RTDB pointer.
+        # Compensate: the blob is already in Storage. If we can't persist the
+        # path on the transcript, delete the blob so it can't orphan.
         _log.error(
-            "Failed to persist audioUrl for transcript=%s; compensating by deleting blob: %s",
+            "Failed to persist audioPath for transcript=%s; compensating by deleting blob: %s",
             transcript_id, e,
         )
         delete_audio_blob(form_id, transcript_id)
-        raise HTTPException(status_code=500, detail="Failed to persist audio URL")
-    return {"audioUrl": url}
+        raise HTTPException(status_code=500, detail="Failed to persist audio path")
+
+    from .services.firebase_client import signed_audio_url
+    signed_url = signed_audio_url(blob_path)
+    if not signed_url:
+        # Rare: upload + DB write succeeded but signing failed (credentials
+        # misconfigured?). Return the path so the client can retry the fetch;
+        # the blob is safe because it's private without a signed URL.
+        _log.warning(
+            "Uploaded %s but failed to mint signed URL - client will see empty audioUrl",
+            blob_path,
+        )
+    return {"audioUrl": signed_url or ""}
 
 
 # ── Step 1: AI extracts structured data from transcript ──────────────
