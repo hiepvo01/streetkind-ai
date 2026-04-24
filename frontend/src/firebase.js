@@ -2,6 +2,9 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
+// Firebase web config. The apiKey here is a PUBLIC project identifier, not a
+// secret (see https://firebase.google.com/docs/projects/api-keys). Access is
+// controlled by security rules + Auth token verification on the backend.
 const firebaseConfig = {
   apiKey: "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ",
   authDomain: "streetkind-app-dev.firebaseapp.com",

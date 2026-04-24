@@ -25,7 +25,8 @@ DEMO_VOLUNTEER = {"email": "volunteer@streetkind.demo", "password": "streetkind1
 DEMO_ADMIN = {"email": "admin@streetkind.demo", "password": "streetkind123"}
 DEMO_LEADER = {"email": "leader@streetkind.demo", "password": "streetkind123"}
 
-# Public Web API key (same project as CRED_PATH); matches frontend/src/firebase.js.
+# Firebase Web API key - PUBLIC project identifier, not a secret.
+# See https://firebase.google.com/docs/projects/api-keys.
 _DEFAULT_FIREBASE_WEB_API_KEY = "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ"
 
 
