@@ -149,6 +149,20 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
     text: s.label,
   }));
 
+  const createdAtLabel = (() => {
+    const ts = incident.createdDate || incident.startTime;
+    if (!ts) return '—';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-AU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  })();
+
   return (
     <div>
       <Header as="h2">Incident Details</Header>
@@ -188,8 +202,12 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               loading={geoLoading}
               disabled={geoLoading}
               onClick={handleUseMyLocation}
-              style={{ marginBottom: '1rem' }}
+              style={{ marginBottom: '3rem' }}
             />
+            <Form.Field style={{ marginTop: '0.25rem', marginBottom: '1rem' }}>
+              <label>Date/Time (Created)</label>
+              <div style={{ color: 'rgba(0,0,0,0.6)' }}>{createdAtLabel}</div>
+            </Form.Field>
 
             <Divider />
 

@@ -47,11 +47,13 @@ const zeroGenderAge = () => ({
 });
 
 export function createEmptyIncidentFormData(defaultSite = '') {
+    const now = Date.now();
     return {
         incident: {
             teamLeaderName: '',
             site: defaultSite || '',
             location: { address: '', latitude: null, longitude: null },
+            startTime: now,
             encounteredBy: {},
             otherServicesInvolved: {},
             quickNote: '',

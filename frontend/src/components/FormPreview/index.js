@@ -88,6 +88,20 @@ const FormPreview = ({
                     return;
                 }
             }
+            // createdDate is assigned server-side on first save; set a local value so the UI
+            // can display immediately without requiring a reload/edit round-trip.
+            if (formType === 'incident') {
+                const existing = data?.incident?.createdDate;
+                if (!existing) {
+                    onDataChange({
+                        ...data,
+                        incident: {
+                            ...data.incident,
+                            createdDate: Date.now(),
+                        },
+                    });
+                }
+            }
             onSubmitted();
         } catch (e) {
             setError('Submit failed: ' + e.message);
