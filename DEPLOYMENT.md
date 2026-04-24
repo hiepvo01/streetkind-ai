@@ -68,14 +68,20 @@ npx firebase-tools login
 
 **Environment variables (Coolify UI → Environment Variables):**
 
-| Var | Value |
-|---|---|
-| `ANTHROPIC_FOUNDRY_API_KEY` | Foundry key |
-| `ANTHROPIC_FOUNDRY_BASE_URL` | Foundry endpoint, ends in `/anthropic/` |
-| `FIREBASE_DATABASE_URL` | `https://streetkind-app-dev-default-rtdb.firebaseio.com` |
-| `FIREBASE_SERVICE_ACCOUNT_PATH` | `/app/firebase-service-account.json` |
-| `FIREBASE_STORAGE_BUCKET` | `streetkind-app-dev.firebasestorage.app` |
-| `CORS_ORIGINS` | `https://streetkind-app-dev.web.app,https://streetkind-app-dev.firebaseapp.com` |
+| Var | Value | Required? |
+|---|---|---|
+| `ANTHROPIC_FOUNDRY_API_KEY` | Foundry key | yes |
+| `ANTHROPIC_FOUNDRY_BASE_URL` | Foundry endpoint, ends in `/anthropic/` | yes (or `ANTHROPIC_FOUNDRY_RESOURCE`) |
+| `FIREBASE_DATABASE_URL` | `https://streetkind-app-dev-default-rtdb.firebaseio.com` | yes |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | `/app/firebase-service-account.json` | yes |
+| `FIREBASE_STORAGE_BUCKET` | `streetkind-app-dev.firebasestorage.app` | yes for audio; 503 on audio upload if unset |
+| `CORS_ORIGINS` | `https://streetkind-app-dev.web.app,https://streetkind-app-dev.firebaseapp.com` | yes |
+| `AUDIO_SIGNED_URL_TTL_SECONDS` | `3600` (default) | optional - signed URL lifetime in seconds |
+| `MAX_AUDIO_BYTES` | `20971520` (default 20 MB) | optional |
+| `MAX_TRANSCRIPT_LENGTH` | `5000` (default chars) | optional |
+| `USERS_CACHE_TTL_SECONDS` | `30` (default) | optional; set `0` to disable hierarchy cache |
+| `AI_MODEL` | (reads `config/app.json` default) | optional override for the Foundry deployment name |
+| `WHISPER_MODEL` | (unused in prod) | only used by the `app/services/transcription.py` fallback path, which is not exercised at runtime |
 
 **Persistent storage:** file mount at `/app/firebase-service-account.json` with the contents of the Firebase service-account JSON. Rotate this file in-place in Coolify whenever you rotate the key in Firebase Console.
 
@@ -102,7 +108,21 @@ git push github main           # GitHub mirror (Coolify)
 - **Services in use:** Realtime Database, Storage, Auth, Hosting
 - **Rules:**
   - `database.rules.json` — all reads/writes denied to clients; Admin SDK bypasses. `.indexOn` for `createdBy` on `incidentForms` and `safeSpaceForms`, plus `incidentId` / `createdBy` on `transcripts`
-  - `storage.rules` — all reads/writes denied to clients. Audio blobs are made public at upload time via `blob.make_public()` so the returned URL works without auth
+  - `storage.rules` — all reads/writes denied to clients. Audio blobs stay **private**; the backend issues short-lived v4 signed URLs on read (see Security model below)
+
+## Security model
+
+- **Auth:** clients send a Firebase ID token (`Authorization: Bearer ...`) on every protected request. The backend verifies via `firebase_admin.auth.verify_id_token` and uses the resulting `uid` as `createdBy` on all writes — clients never set it directly.
+- **Access control:** incident-scoped endpoints run through `_check_incident_access` in `app/routes.py`, which calls `is_ancestor(caller_uid, owner_uid)` to check that the caller either owns the record or is an ancestor in the `users/{uid}/createdBy` hierarchy (cached 30s by default).
+- **Push-ID validation:** `form_id` and `transcript_id` path params are checked against `^-[A-Za-z0-9_-]{19}$` at the route layer. `upload_audio()` re-validates the same regex inside the service layer as defense-in-depth.
+- **Audio storage (private + signed URLs):**
+  - `upload_audio()` writes a private blob at `audio/{incidentId}/{transcriptId}.<ext>`. No `make_public()` anywhere in the codebase.
+  - `transcripts/{id}/audioPath` stores the blob path. **Never** a persistent URL.
+  - `signed_audio_url()` mints v4 signed URLs with TTL `AUDIO_SIGNED_URL_TTL_SECONDS` (default 1 hour). The upload route returns one for immediate playback; the list route mints a fresh one on every request.
+  - A leaked signed URL expires and becomes useless. Fresh audio access requires authenticated hierarchy-scoped access to the incident.
+- **Content-type + magic byte validation:** audio uploads must have an `audio/*` MIME from `_ALLOWED_AUDIO_TYPES` **and** the first bytes must match a known container (WebM EBML, MP4 `ftyp`, Ogg, MP3 ID3/MPEG). Prevents the endpoint from being a generic file-upload backdoor.
+- **Cleanup ordering:** `delete_transcripts_for_incident` deletes Storage blobs **first** (so RTDB `transcriptIds` pointers remain valid for retry if Storage fails), then RTDB records. Failures are logged with `incident_id` and aggregated into a returned summary dict — never silently swallowed.
+- **Compensation on partial writes:** if `upload_audio` succeeds but the subsequent `audioPath` RTDB write fails, the route calls `delete_audio_blob` to remove the blob before raising 500, preventing orphaned private blobs.
 
 ## DNS / TLS
 
@@ -147,11 +167,27 @@ The CRA dev server proxies `/api/*` to `localhost:8000` (see `"proxy"` in `front
 ## E2E tests
 
 ```bash
-# With both local servers running:
+# Local backend + frontend must be running.
+# FIREBASE_STORAGE_BUCKET must be set for the audio roundtrip test to hit 200
+# (otherwise it cleanly skips with an explicit message).
+FIREBASE_SERVICE_ACCOUNT_PATH=<path> \
+FIREBASE_STORAGE_BUCKET=streetkind-app-dev.firebasestorage.app \
 python -m pytest tests/e2e -v --browser chromium
 ```
 
-All 20 tests passed as of the last deployment (`ad51977`). Tests auto-clean test data from Firebase after each run.
+**Suite as of commit `c3b25fb`: 36 collected → 32 passed, 4 skipped (AI-gated).**
+
+Breakdown:
+- `test_login.py` (5) — valid/invalid creds, logout, admin login, unauthenticated redirect
+- `test_dashboard.py` (2) — 11 stat labels, non-zero live values
+- `test_incident_form.py` (2) — UI render + API submit + Firebase verification + cleanup
+- `test_safebase_form.py` (2) — UI switching + API submit + cleanup
+- `test_incident_crud.py` (4) — full submit/fetch/update/delete cycle + access control + invalid-ID rejection
+- `test_transcripts.py` (8) — transcript create/fetch/delete, audio roundtrip (signed URLs + public-URL denial + blob cleanup), 4 security tests (cross-user upload, cross-incident transcript reuse, invalid transcript_id, non-audio payload rejection), 1 concurrency test
+- `test_responsive.py` (9) — 3 viewports × 3 checks
+- `test_ai_extract.py` (4) — Foundry-backed extraction; **skipped by default**, set `RUN_AI_TESTS=1` to run (costs real tokens)
+
+All tests auto-clean their Firebase records. Override the target API with `API_BASE_URL=https://46-62-215-38.sslip.io` to run against prod.
 
 ## Security notes
 
@@ -166,7 +202,24 @@ All 20 tests passed as of the last deployment (`ad51977`). Tests auto-clean test
 - [ ] Move from sslip.io to a proper domain (`api.streetkind.xxx`) to eliminate the LE rate-limit risk
 - [ ] Automate UTS GitLab → GitHub mirroring so there's one push, not two
 - [ ] Migrate the 66 original SKSSIR users from `tk-foundation` Firebase Auth to `streetkind-app-dev` (currently only 3 demo accounts can log in)
-- [ ] Add a `/api/audio/...` authenticated-download route if you ever disable `blob.make_public()`
 - [ ] Set a Blaze budget alert in GCP Billing to cap spend
 - [ ] Consider adding health-check & restart policy to the Coolify container (already running, but worth configuring)
 - [ ] Write a GitHub Actions workflow (or Coolify cron) to redeploy frontend automatically after `main` pushes, matching the backend's auto-deploy
+- [ ] Run the skipped `test_ai_extract.py` suite before releases (`RUN_AI_TESTS=1`) so Foundry contract breaks are caught
+- [ ] Add front-end audio UX: show a mic-permission-denied warning so volunteers know why their audio isn't being captured
+
+## Recent audit
+
+A full security + correctness audit of the audio/transcript pipeline ran on 2026-04-25 (commit `c3b25fb`). Findings and remediation:
+
+| ID | Finding | Status |
+|---|---|---|
+| C1 | Silent Storage errors hid orphan blobs on delete | Fixed — logs + delete-ordering + summary dict |
+| C2 | `upload_audio` trusted route-layer ID validation only | Fixed — `_assert_push_id` re-validates at service layer |
+| C3 | Audio blobs world-readable via `make_public()` | Fixed — private blobs + v4 signed URLs |
+| C4 | Orphan blob if `audioPath` RTDB write failed | Fixed — compensating blob delete |
+| C5 | Frontend silently swallowed transcript save failures | Fixed — surfaces warnings in FormPreview |
+| I6 | No magic-byte check on uploads | Fixed — WebM/MP4/Ogg/MP3 container detection |
+| T1-T5, T8 | Security/concurrency test gaps | Fixed — 5 new tests added |
+
+Remaining Important/Minor findings (I1-I7 excluding I6, M1-M8, T3-T9 excluding added) are tracked informally; none are currently exploitable given the above fixes.

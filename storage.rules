@@ -1,8 +1,10 @@
 rules_version = '2';
 
 // All uploads/deletes go through the backend using the Admin SDK, which
-// bypasses these rules. Audio files under audio/** are made public at the
-// blob level, so playback works via direct URL regardless of this rule.
+// bypasses these Firebase rules. Playback uses GCS v4 signed URLs minted by
+// the backend on read (see app/services/firebase_client.py:signed_audio_url).
+// Signed URLs authenticate at the GCS layer and do not consult these rules,
+// so we can safely deny everything here as a defense-in-depth backstop.
 service firebase.storage {
     match /b/{bucket}/o {
         match /{allPaths=**} {

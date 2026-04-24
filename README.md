@@ -2,11 +2,18 @@
 
 A voice-powered assistant that lets StreetKind volunteers speak naturally about incidents and SafeBase activity, then automatically fills in the required forms using AI-structured output. Built to integrate with the existing SKSSIR system.
 
+**Live:**
+- Frontend: https://streetkind-app-dev.web.app
+- Backend API: https://46-62-215-38.sslip.io
+
+For the full deployment playbook (Coolify, Firebase Hosting, signed-URL audio, redeploy steps, audit history) see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## How It Works
 
 ```
 Volunteer speaks → Web Speech API transcribes → Claude AI extracts structured data
     → Form pre-filled (incident + clients or SafeBase) → Volunteer reviews → Submit to Firebase
+    → Transcript + audio (signed URL) linked to the saved incident for audit + replay
 ```
 
 ## Features
@@ -16,6 +23,8 @@ Volunteer speaks → Web Speech API transcribes → Claude AI extracts structure
 - **Client Form**: 5-tab wizard (Client Info, Basic Support, Health Support, Risk Minimisation, Services Referred) with 50+ fields matching SKSSIR exactly
 - **SafeBase Form**: Gender x age headcount grid + assistance rendered counters
 - **Dashboard**: 11 live impact statistics from Firebase
+- **My Incidents / Monitor**: Volunteers see their own reports; team leaders / admin see their hierarchy's reports, with edit + delete
+- **Transcript + audio playback**: every voice-driven submit stores the transcript text + audio (private Firebase Storage blob, 1-hour signed URLs for playback) linked to the incident
 - **Firebase Auth**: Login with email/password, role-based access
 - **Responsive**: Desktop (1920px), iPad (768px), Mobile (375px)
 - **Config-driven**: Sites, prompts, field options editable via JSON files (no code changes needed)
@@ -26,13 +35,14 @@ See [FEATURES.md](FEATURES.md) for full details.
 
 | Component | Technology |
 |-----------|-----------|
-| Backend | FastAPI (Python) |
-| Frontend | React 18.2 + Semantic UI React 2.1.4 |
+| Backend | FastAPI (Python), Docker on Coolify |
+| Frontend | React 18.2 + Semantic UI React 2.1.4, deployed to Firebase Hosting |
 | AI | Claude via Microsoft Foundry (Anthropic Messages API, tool_use structured output) |
-| Auth | Firebase Authentication |
+| Auth | Firebase Authentication (ID-token verified on backend) |
 | Database | Firebase Realtime Database (existing SKSSIR) |
-| Speech | Web Speech API (Chrome/Edge) |
-| Testing | Playwright + pytest (20 E2E tests) |
+| Audio storage | Firebase Storage (private blobs + v4 signed URLs) |
+| Speech | Web Speech API (Chrome/Edge) + MediaRecorder for audio capture |
+| Testing | Playwright + pytest (36 E2E tests: 32 always-on + 4 AI-extraction gated) |
 
 ## Getting Started
 
@@ -88,26 +98,32 @@ FastAPI docs: http://localhost:8000/docs
 ```bash
 # Both servers must be running first
 conda activate streetkind-ai
-# Ensure Firebase credentials are set for Firebase-verified E2E tests:
-# - FIREBASE_SERVICE_ACCOUNT_PATH
-# - FIREBASE_DATABASE_URL
+
+# Required env for Firebase-verified E2E tests:
+#   FIREBASE_SERVICE_ACCOUNT_PATH   path to service account JSON
+#   FIREBASE_STORAGE_BUCKET         e.g. streetkind-app-dev.firebasestorage.app
+# Optional:
+#   API_BASE_URL                    point at prod instead of localhost
+#   RUN_AI_TESTS=1                  include Foundry-backed /api/extract tests
+
 pytest tests/e2e/ -v              # headless
 pytest tests/e2e/ -v --headed     # watch the browser
 ```
 
-20 tests covering login, form submission + Firebase verification, dashboard, and responsive layouts. Test data auto-cleaned after each run.
+**Suite: 36 tests collected — 32 always-on pass + 4 AI-gated (skipped by default).** Covers login, full incident CRUD (+ access control), SafeBase submit, dashboard, transcript lifecycle, audio upload/signed URLs/cleanup, security (cross-user + cross-incident denial, path-traversal rejection, magic-byte validation), concurrency, and responsive layouts. Test data auto-cleaned after each run.
 
 ## Project Structure
 
 ```
 streetkind-ai/
   app/                              # FastAPI backend
+    auth.py                         # Firebase ID token verification dependency
     config.py                       # Config loader (reads config/ folder)
-    routes.py                       # API endpoints (/config, /extract, /submit, /dashboard, /me)
-    schemas/                        # Pydantic models (incident, client, safebase, combined)
+    routes.py                       # API endpoints (config, extract, submit, forms CRUD, transcripts, audio, monitor)
+    schemas/                        # Pydantic models (incident, client, safebase, combined, transcript)
     services/
       ai_extractor.py               # Claude tool_use structured output
-      firebase_client.py            # Firebase RTDB read/write
+      firebase_client.py            # Firebase RTDB read/write + Storage signed URLs
   config/                           # Editable by non-technical users
     app.json                        # App name, AI model, speech settings
     sites.json                      # Operating sites
@@ -134,8 +150,15 @@ streetkind-ai/
           ClientForm/               # 5-tab wizard (info, support, health, risk, services)
           SafeBaseForm/             # People count grid + assistance counters
   tests/
-    e2e/                            # Playwright E2E tests (20 tests)
+    e2e/                            # Playwright E2E tests (32 tests + 4 AI-gated)
     test_extraction.py              # AI extraction unit tests
+  Dockerfile                        # Backend container (strips test deps for small image)
+  .dockerignore                     # Excludes frontend, tests, service-account JSON
+  firebase.json                     # Firebase Hosting + rules pointers
+  .firebaserc                       # Default project: streetkind-app-dev
+  database.rules.json               # RTDB security rules (Admin SDK only)
+  storage.rules                     # Storage rules (deny all; signed URLs bypass)
+  DEPLOYMENT.md                     # Deployment playbook
 ```
 
 ## Configuration
@@ -162,12 +185,24 @@ firebase auth:import users.json --project streetkind-app-dev
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/config` | GET | UI configuration (sites, form types, field options) |
-| `/api/extract` | POST | Voice transcript -> AI structured form data |
-| `/api/submit` | POST | Submit form data to Firebase (requires Bearer token; `createdBy` is the token UID) |
-| `/api/dashboard` | GET | Dashboard impact statistics |
-| `/api/me` | GET | Authenticated user profile (requires `Authorization: Bearer <Firebase ID token>`) |
-| `/api/health` | GET | Health check |
-| `/docs` | GET | Auto-generated API documentation |
+All protected endpoints require `Authorization: Bearer <Firebase ID token>`. `createdBy` is always set from the verified token UID — clients never send it.
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/config` | GET | — | UI configuration (sites, form types, field options) |
+| `/api/dashboard` | GET | — | 11 dashboard impact statistics |
+| `/api/health` | GET | — | Health check |
+| `/api/extract` | POST | — | Voice transcript -> AI structured form data |
+| `/api/submit` | POST | required | Submit incident or SafeBase form |
+| `/api/me` | GET | required | Authenticated user profile |
+| `/api/team/{uid}` | GET | required + hierarchy | Direct reports grouped by role |
+| `/api/monitor/{uid}/forms` | GET | required + hierarchy | Forms created by `{uid}` |
+| `/api/forms/incident/{id}` | GET | required + hierarchy | Full incident + clients |
+| `/api/forms/incident/{id}` | PUT | required + hierarchy | Update incident + replace clients |
+| `/api/forms/incident/{id}` | DELETE | required + hierarchy | Delete incident, clients, transcripts, audio blobs |
+| `/api/forms/incident/{id}/transcripts` | GET | required + hierarchy | List transcripts (each gets fresh signed `audioUrl`) |
+| `/api/forms/incident/{id}/transcripts` | POST | required + hierarchy | Create transcript record |
+| `/api/forms/incident/{id}/transcripts/{tid}/audio` | POST | required + hierarchy | Upload audio blob (multipart) |
+| `/docs` | GET | — | Auto-generated OpenAPI docs |
+
+"hierarchy" means `caller_uid == owner_uid`, or caller is an ancestor in the `users/{uid}.createdBy` chain.
