@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 def create_app() -> FastAPI:
     load_dotenv()
 
-    app = FastAPI(title="Streetkind AI", version="0.1.0")
+    app = FastAPI(title="StreetKind AI", version="0.1.0")
 
     origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     app.add_middleware(

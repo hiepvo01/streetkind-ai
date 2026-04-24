@@ -1,6 +1,6 @@
 import os
 import re
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from .auth import get_current_uid
@@ -9,6 +9,7 @@ from .services.ai_extractor import extract_incident, extract_safebase
 from .services.firebase_client import push_incident_form, push_safebase_form
 from .schemas.combined_incident_schema import CombinedIncidentSchema
 from .schemas.safebase_schema import SafeBaseFormSchema
+from .schemas.transcript_schema import TranscriptSchema
 
 router = APIRouter()
 
@@ -207,6 +208,96 @@ def delete_incident_route(form_id: str, caller_uid: str = Depends(get_current_ui
 @router.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# ── Transcript + audio storage ────────────────────────────────────────
+
+MAX_AUDIO_BYTES = int(os.getenv("MAX_AUDIO_BYTES", str(20 * 1024 * 1024)))  # 20MB default
+_ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/webm;codecs=opus", "audio/mp4", "audio/mpeg", "audio/ogg"}
+
+
+@router.get("/api/forms/incident/{form_id}/transcripts")
+def list_incident_transcripts(form_id: str, caller_uid: str = Depends(get_current_uid)):
+    """Return every transcript linked to the incident, oldest first."""
+    from .services.firebase_client import get_transcripts_for_incident
+
+    _check_incident_access(form_id, caller_uid)
+    return {"transcripts": get_transcripts_for_incident(form_id)}
+
+
+class CreateTranscriptRequest(BaseModel):
+    text: str
+    audioDurationMs: int = 0
+    extractionMeta: dict | None = None
+
+
+@router.post("/api/forms/incident/{form_id}/transcripts")
+def create_transcript(
+    form_id: str,
+    req: CreateTranscriptRequest,
+    caller_uid: str = Depends(get_current_uid),
+):
+    """Create a transcript record linked to the incident. Audio is uploaded separately."""
+    from .services.firebase_client import push_transcript
+
+    _check_incident_access(form_id, caller_uid)
+
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="Empty transcript")
+    if len(req.text) > MAX_TRANSCRIPT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Transcript too long ({len(req.text)} chars). Max: {MAX_TRANSCRIPT_LENGTH}",
+        )
+
+    validated = TranscriptSchema(
+        text=req.text,
+        audioDurationMs=req.audioDurationMs,
+        extractionMeta=req.extractionMeta or {},
+    )
+    transcript_id = push_transcript(
+        form_id, validated.model_dump(exclude={"incidentId"}), caller_uid,
+    )
+    return {"transcriptId": transcript_id}
+
+
+@router.post("/api/forms/incident/{form_id}/transcripts/{transcript_id}/audio")
+async def upload_transcript_audio(
+    form_id: str,
+    transcript_id: str,
+    audio: UploadFile = File(...),
+    caller_uid: str = Depends(get_current_uid),
+):
+    """Upload an audio blob for an existing transcript. Updates transcripts/{id}/audioUrl."""
+    from firebase_admin import db as _db
+    from .services.firebase_client import upload_audio
+
+    _check_incident_access(form_id, caller_uid)
+
+    if not _RTDB_PUSH_ID_RE.match(transcript_id):
+        raise HTTPException(status_code=400, detail="Invalid transcript_id")
+
+    content_type = audio.content_type or ""
+    if content_type.split(";")[0].strip() not in {t.split(";")[0] for t in _ALLOWED_AUDIO_TYPES}:
+        raise HTTPException(status_code=400, detail=f"Unsupported audio type: {content_type}")
+
+    body = await audio.read()
+    if len(body) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Audio too large ({len(body)} bytes). Max: {MAX_AUDIO_BYTES}",
+        )
+    if not body:
+        raise HTTPException(status_code=400, detail="Empty audio blob")
+
+    # Make sure the transcript actually belongs to this incident before writing.
+    existing = _db.reference(f"transcripts/{transcript_id}").get()
+    if not existing or existing.get("incidentId") != form_id:
+        raise HTTPException(status_code=404, detail="Transcript not found for this incident")
+
+    url = upload_audio(form_id, transcript_id, body, content_type)
+    _db.reference(f"transcripts/{transcript_id}/audioUrl").set(url)
+    return {"audioUrl": url}
 
 
 # ── Step 1: AI extracts structured data from transcript ──────────────

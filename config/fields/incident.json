@@ -2,7 +2,7 @@
     "_comment": "Field options specific to the Incident Report form",
 
     "encountered_by": [
-        { "key": "tkAmbassador", "label": "TK Ambassador" },
+        { "key": "skAmbassador", "label": "SK Ambassador" },
         { "key": "cctv", "label": "CCTV" },
         { "key": "self", "label": "Self" },
         { "key": "friend", "label": "Friend" },

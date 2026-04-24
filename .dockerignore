@@ -1,0 +1,35 @@
+.git
+.gitignore
+.env
+.env.example
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# Frontend source is built separately and deployed to Firebase Hosting
+frontend
+
+# Tests are not needed at runtime
+tests
+
+# Docs / specs
+docs
+*.md
+demo-accounts.txt
+
+# Local dev artefacts
+node_modules
+.vscode
+.idea
+
+# Service account JSON is injected by Coolify via env/file mount, not baked
+# into the image.
+streetkind-app-dev-firebase-adminsdk-*.json
+firebase-service-account.json
+*firebase-adminsdk*.json
+
+# Conda files
+environment.yml

@@ -15,7 +15,7 @@ SAMPLE_INCIDENT_DATA = {
         "site": "townHall",
         "location": {"address": "E2E Test Location", "latitude": None, "longitude": None},
         "encounteredBy": {
-            "generalPublic": True, "tkAmbassador": False, "cctv": False,
+            "generalPublic": True, "skAmbassador": False, "cctv": False,
             "self": False, "friend": False, "venueSecurity": False,
             "transportStaff": False, "police": False, "fireRescue": False,
             "rangers": False, "ambulance": False, "other": "",

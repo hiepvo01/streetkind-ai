@@ -1,8 +1,8 @@
-# Streetkind AI - Features & Capabilities
+# StreetKind AI - Features & Capabilities
 
 ## Overview
 
-Streetkind AI is a voice-powered form assistant that helps Streetkind volunteers fill incident reports and SafeBase forms by speaking naturally. The app uses Claude AI to extract structured data from voice transcripts and maps it to the exact form fields used in the existing SKSSIR system.
+StreetKind AI is a voice-powered form assistant that helps StreetKind volunteers fill incident reports and SafeBase forms by speaking naturally. The app uses Claude AI to extract structured data from voice transcripts and maps it to the exact form fields used in the existing SKSSIR system.
 
 ## Core Features
 
@@ -15,7 +15,7 @@ Streetkind AI is a voice-powered form assistant that helps Streetkind volunteers
 ### Incident Report Form
 - Matches the SKSSIR incident form layout exactly
 - Fields: Team Leader Name, Base Site, Location/Address
-- Incident Referred By: 11 checkboxes (TK Ambassador, CCTV, Self, Friend, General Public, Venue Security, Transport Staff, Police, Fire & Rescue, Rangers, Ambulance) + Other text
+- Incident Referred By: 11 checkboxes (SK Ambassador, CCTV, Self, Friend, General Public, Venue Security, Transport Staff, Police, Fire & Rescue, Rangers, Ambulance) + Other text
 - Other Services Referred: 6 checkboxes + Others text
 - Embedded Client forms (one per person helped)
 - Incident Description and Outcome textareas
@@ -84,7 +84,7 @@ Each client within an incident has a 5-tab form matching SKSSIR exactly:
 - Matches SKSSIR and streetkind-dashboard styling
 - Semantic UI React 2.1.4 components
 - Blue primary color (#259ee5), green submit, red cancel
-- Streetkind logo in menu bar
+- StreetKind logo in menu bar
 - Dark inverted push sidebar navigation
 - Consistent with SKSSIR: huge menu, blue segments, raised cards
 

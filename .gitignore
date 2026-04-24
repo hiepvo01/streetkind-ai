@@ -28,3 +28,6 @@ docs/superpowers/
 *.png
 *.jpg
 .playwright-mcp/
+
+# Firebase deploy artefacts
+.firebase/

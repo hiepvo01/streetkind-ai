@@ -11,21 +11,58 @@ import {
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
-import { submitForm } from '../../services/api';
+import { submitForm, createTranscript, uploadTranscriptAudio } from '../../services/api';
 import IncidentForm from '../forms/IncidentForm';
 import SafeBaseForm from '../forms/SafeBaseForm';
 
-const FormPreview = ({ formType, data, onDataChange, onSubmitted, onReset, fieldOptions, sites }) => {
+const FormPreview = ({
+    formType,
+    data,
+    onDataChange,
+    onSubmitted,
+    onReset,
+    fieldOptions,
+    sites,
+    transcript,
+    recording,
+    extractionMeta,
+}) => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
+
+    const persistTranscript = async (incidentId) => {
+        if (!transcript || !transcript.trim()) return;
+        try {
+            const { transcriptId } = await createTranscript(
+                incidentId,
+                transcript,
+                recording?.durationMs || 0,
+                extractionMeta || null,
+            );
+            if (recording?.blob) {
+                try {
+                    await uploadTranscriptAudio(incidentId, transcriptId, recording.blob);
+                } catch (audioErr) {
+                    // Audio upload is best-effort - the text transcript is the
+                    // primary audit artefact. Surface a non-blocking warning.
+                    console.warn('Audio upload failed:', audioErr.message);
+                }
+            }
+        } catch (transcriptErr) {
+            console.warn('Transcript save failed:', transcriptErr.message);
+        }
+    };
 
     const handleSubmit = async (status = 'completed') => {
         setSubmitting(true);
         setError(null);
 
         try {
-            await submitForm(formType, data, status);
+            const result = await submitForm(formType, data, status);
+            if (formType === 'incident' && result?.key) {
+                await persistTranscript(result.key);
+            }
             onSubmitted();
         } catch (e) {
             setError('Submit failed: ' + e.message);
@@ -135,6 +172,9 @@ FormPreview.propTypes = {
     onReset: PropTypes.func.isRequired,
     fieldOptions: PropTypes.object.isRequired,
     sites: PropTypes.array.isRequired,
+    transcript: PropTypes.string,
+    recording: PropTypes.object,
+    extractionMeta: PropTypes.object,
 };
 
 export default FormPreview;

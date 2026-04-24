@@ -1,0 +1,16 @@
+{
+    "rules": {
+        ".read": false,
+        ".write": false,
+
+        "incidentForms": {
+            ".indexOn": ["createdBy"]
+        },
+        "safeSpaceForms": {
+            ".indexOn": ["createdBy"]
+        },
+        "transcripts": {
+            ".indexOn": ["incidentId", "createdBy"]
+        }
+    }
+}

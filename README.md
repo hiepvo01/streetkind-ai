@@ -1,6 +1,6 @@
-# Streetkind AI - Voice-to-Form Assistant
+# StreetKind AI - Voice-to-Form Assistant
 
-A voice-powered assistant that lets Streetkind volunteers speak naturally about incidents and SafeBase activity, then automatically fills in the required forms using AI-structured output. Built to integrate with the existing SKSSIR system.
+A voice-powered assistant that lets StreetKind volunteers speak naturally about incidents and SafeBase activity, then automatically fills in the required forms using AI-structured output. Built to integrate with the existing SKSSIR system.
 
 ## How It Works
 

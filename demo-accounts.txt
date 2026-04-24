@@ -1,4 +1,4 @@
-Streetkind AI - Demo Accounts
+StreetKind AI - Demo Accounts
 ==============================
 
 These accounts are created in Firebase Auth for the streetkind-app-dev project.
@@ -53,7 +53,7 @@ Step 4: Verify
   Check that all 66 users appear in the new project.
 
 After migration, all original SKSSIR users will be able to log in to
-Streetkind AI with their existing email and password. Their UIDs will match
+StreetKind AI with their existing email and password. Their UIDs will match
 the records in the RTDB users/ node.
 
 Alternative: If you don't have access to tk-foundation

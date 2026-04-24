@@ -14,6 +14,21 @@ import PropTypes from 'prop-types';
 
 import { extractForm } from '../../services/api';
 
+const PREFERRED_AUDIO_TYPES = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg',
+];
+
+const pickAudioMimeType = () => {
+    if (typeof MediaRecorder === 'undefined') return null;
+    for (const t of PREFERRED_AUDIO_TYPES) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return '';
+};
+
 const VoiceInput = ({
     speechConfig,
     transcript,
@@ -21,6 +36,7 @@ const VoiceInput = ({
     formType,
     site,
     onExtracted,
+    onRecordingCaptured,
     submitted,
 }) => {
     const [isRecording, setIsRecording] = useState(false);
@@ -28,13 +44,77 @@ const VoiceInput = ({
     const [error, setError] = useState(null);
     const recognitionRef = useRef(null);
     const finalTranscriptRef = useRef('');
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const mediaStreamRef = useRef(null);
+    const recordingStartMsRef = useRef(null);
 
-    const startRecording = useCallback(() => {
+    const stopAudioCapture = useCallback(() => {
+        const mr = mediaRecorderRef.current;
+        if (mr && mr.state !== 'inactive') {
+            try { mr.stop(); } catch (e) { /* already stopping */ }
+        }
+        mediaRecorderRef.current = null;
+        const stream = mediaStreamRef.current;
+        if (stream) {
+            stream.getTracks().forEach((t) => t.stop());
+            mediaStreamRef.current = null;
+        }
+    }, []);
+
+    const stopRecording = useCallback(() => {
+        if (recognitionRef.current) {
+            const rec = recognitionRef.current;
+            recognitionRef.current = null; // prevent auto-restart in onend
+            try { rec.stop(); } catch (e) { /* already stopped */ }
+        }
+        stopAudioCapture();
+        setIsRecording(false);
+    }, [stopAudioCapture]);
+
+    const startAudioCapture = useCallback(async () => {
+        if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+            return; // speech-to-text only; no audio storage on this browser
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaStreamRef.current = stream;
+            const mimeType = pickAudioMimeType();
+            const recorder = mimeType
+                ? new MediaRecorder(stream, { mimeType })
+                : new MediaRecorder(stream);
+            audioChunksRef.current = [];
+            recordingStartMsRef.current = Date.now();
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+            recorder.onstop = () => {
+                const type = recorder.mimeType || 'audio/webm';
+                const blob = new Blob(audioChunksRef.current, { type });
+                const durationMs = recordingStartMsRef.current
+                    ? Date.now() - recordingStartMsRef.current
+                    : 0;
+                audioChunksRef.current = [];
+                if (blob.size > 0 && onRecordingCaptured) {
+                    onRecordingCaptured({ blob, durationMs });
+                }
+            };
+            recorder.start();
+            mediaRecorderRef.current = recorder;
+        } catch (e) {
+            // Mic permission denied or hardware issue - speech-to-text may still
+            // work (it requests its own permission) so don't block the flow.
+        }
+    }, [onRecordingCaptured]);
+
+    const startRecording = useCallback(async () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             setError('Speech recognition is not supported in this browser. Use Chrome or Edge.');
             return;
         }
+
+        await startAudioCapture();
 
         const recognition = new SpeechRecognition();
         recognition.continuous = speechConfig.continuous;
@@ -73,15 +153,7 @@ const VoiceInput = ({
         recognitionRef.current = recognition;
         setIsRecording(true);
         setError(null);
-    }, [speechConfig, onTranscriptChange]);
-
-    const stopRecording = useCallback(() => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-        }
-        setIsRecording(false);
-    }, []);
+    }, [speechConfig, onTranscriptChange, startAudioCapture, stopRecording]);
 
     const toggleRecording = () => {
         if (isRecording) {
@@ -100,9 +172,10 @@ const VoiceInput = ({
         setExtracting(true);
         setError(null);
 
+        const started = Date.now();
         try {
             const result = await extractForm(transcript, formType, site);
-            onExtracted(result);
+            onExtracted(result, { latencyMs: Date.now() - started });
         } catch (e) {
             setError('Extraction failed: ' + e.message);
         } finally {
@@ -196,6 +269,7 @@ VoiceInput.propTypes = {
     formType: PropTypes.string.isRequired,
     site: PropTypes.string.isRequired,
     onExtracted: PropTypes.func.isRequired,
+    onRecordingCaptured: PropTypes.func,
     submitted: PropTypes.bool.isRequired,
 };
 

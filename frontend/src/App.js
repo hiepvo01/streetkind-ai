@@ -24,6 +24,8 @@ const App = () => {
     const [transcript, setTranscript] = useState('');
     const [formData, setFormData] = useState(null);
     const [submitted, setSubmitted] = useState(false);
+    const [recording, setRecording] = useState(null); // { blob, durationMs }
+    const [extractionMeta, setExtractionMeta] = useState(null); // { latencyMs, model, ... }
 
     const showMonitorNav = profile?.userLevel === 'administrator' || profile?.userLevel === 'teamLeader';
 
@@ -51,6 +53,8 @@ const App = () => {
     const handleReset = () => {
         setTranscript('');
         setSubmitted(false);
+        setRecording(null);
+        setExtractionMeta(null);
         setFormData(
             formType === 'safebase'
                 ? createEmptySafeBaseFormData(site || '')
@@ -63,11 +67,21 @@ const App = () => {
         setFormType(type);
         setTranscript('');
         setSubmitted(false);
+        setRecording(null);
+        setExtractionMeta(null);
         setFormData(
             type === 'safebase'
                 ? createEmptySafeBaseFormData(site || '')
                 : createEmptyIncidentFormData(site || '')
         );
+    };
+
+    const handleExtracted = (result, meta) => {
+        setFormData(result);
+        setExtractionMeta({
+            model: config?.ai_model || '',
+            ...(meta || {}),
+        });
     };
 
     const handleSelectSite = (newSite) => {
@@ -158,7 +172,8 @@ const App = () => {
                                     onTranscriptChange={setTranscript}
                                     formType={formType}
                                     site={site}
-                                    onExtracted={setFormData}
+                                    onExtracted={handleExtracted}
+                                    onRecordingCaptured={setRecording}
                                     submitted={submitted}
                                 />
                                 {formData && !submitted && (
@@ -170,6 +185,9 @@ const App = () => {
                                         onReset={handleReset}
                                         fieldOptions={config.field_options}
                                         sites={config.sites}
+                                        transcript={transcript}
+                                        recording={recording}
+                                        extractionMeta={extractionMeta}
                                     />
                                 )}
                             </>

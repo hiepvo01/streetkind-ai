@@ -1,7 +1,7 @@
 {
-    "app_name": "Streetkind AI",
+    "app_name": "StreetKind AI",
     "app_subtitle": "Voice-powered form filling",
-    "organisation_name": "Streetkind",
+    "organisation_name": "StreetKind",
     "default_site": "townHall",
     "default_form_type": "incident",
     "speech_recognition": {

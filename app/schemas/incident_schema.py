@@ -3,12 +3,17 @@ Pydantic models matching the SKSSIR incidentForms/{id} schema.
 Used as the structured output target for Claude extraction.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from typing import Optional
 
 
 class EncounteredBy(BaseModel):
-    tkAmbassador: bool = False
+    # Accept legacy "tkAmbassador" on read but always serialise as "skAmbassador".
+    skAmbassador: bool = Field(
+        False,
+        validation_alias=AliasChoices("skAmbassador", "tkAmbassador"),
+        serialization_alias="skAmbassador",
+    )
     cctv: bool = False
     self_referred: bool = Field(False, alias="self")
     friend: bool = False

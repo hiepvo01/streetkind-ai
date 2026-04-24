@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Container, Grid, Header } from 'semantic-ui-react';
 import StatCard from './StatCard';
 
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/$/, '');
+
 const STATS_CONFIG = [
     { key: 'peopleAssisted', label: 'People Assisted', icon: 'users', color: 'green' },
     { key: 'drugsIntoxicated', label: 'Drugs and/or Intoxicated', icon: 'beer', color: 'yellow' },
@@ -21,7 +23,7 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/dashboard')
+        fetch(`${API_BASE_URL}/api/dashboard`)
             .then((res) => res.json())
             .then((data) => { setStats(data); setLoading(false); })
             .catch(() => setLoading(false));

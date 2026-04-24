@@ -7,7 +7,7 @@ Database paths and schema metadata are read from config/ files.
 import os
 import time
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import credentials, db, storage
 from ..config import get_form_type_config
 
 
@@ -30,7 +30,11 @@ def _init_firebase():
         )
 
     cred = credentials.Certificate(cred_path)
-    _app = firebase_admin.initialize_app(cred, {"databaseURL": db_url})
+    init_options = {"databaseURL": db_url}
+    bucket = os.getenv("FIREBASE_STORAGE_BUCKET")
+    if bucket:
+        init_options["storageBucket"] = bucket
+    _app = firebase_admin.initialize_app(cred, init_options)
 
 
 def _push_form(form_type_key: str, data: dict, user_uid: str) -> str:
@@ -194,12 +198,33 @@ def get_forms_by_user(uid: str) -> dict:
 # ── Single-incident CRUD ──────────────────────────────────────────────
 
 
+def _normalise_tk_to_sk(incident: dict) -> dict:
+    """
+    Legacy incidents may have encounteredBy.tkAmbassador. Translate to
+    skAmbassador so the frontend (which only knows the new key) displays
+    the value correctly and round-trips it safely on save.
+    """
+    encountered = incident.get("encounteredBy")
+    if isinstance(encountered, dict) and "tkAmbassador" in encountered:
+        # Only migrate when the new key is absent to avoid clobbering an
+        # already-migrated value.
+        if "skAmbassador" not in encountered:
+            encountered["skAmbassador"] = encountered.pop("tkAmbassador")
+        else:
+            # Both present - prefer the new key and drop the legacy one.
+            encountered.pop("tkAmbassador", None)
+        incident["encounteredBy"] = encountered
+    return incident
+
+
 def get_incident_full(form_id: str) -> dict | None:
     """Fetch a single incident and its associated clients from Firebase."""
     _init_firebase()
     incident = db.reference(f"incidentForms/{form_id}").get()
     if incident is None:
         return None
+
+    incident = _normalise_tk_to_sk(incident)
 
     client_ids = incident.get("clientList", [])
     clients = []
@@ -256,7 +281,7 @@ def update_incident(form_id: str, data: dict, editor_uid: str, status: str = "co
 
 
 def delete_incident(form_id: str) -> None:
-    """Delete an incident and its associated clients from Firebase."""
+    """Delete an incident and its associated clients + transcripts from Firebase."""
     _init_firebase()
 
     incident = db.reference(f"incidentForms/{form_id}").get()
@@ -265,6 +290,7 @@ def delete_incident(form_id: str) -> None:
             if isinstance(cid, str):
                 db.reference(f"clients/{cid}").delete()
 
+    delete_transcripts_for_incident(form_id)
     db.reference(f"incidentForms/{form_id}").delete()
 
 
@@ -337,3 +363,98 @@ def is_ancestor(caller_uid: str, target_uid: str, all_users: dict[str, dict] | N
         current = parent
 
     return False
+
+
+# ── Transcripts + audio ──────────────────────────────────────────────
+
+
+def push_transcript(
+    incident_id: str,
+    transcript_data: dict,
+    user_uid: str,
+) -> str:
+    """
+    Store a transcript under transcripts/{id} and append its id to the incident's
+    transcriptIds array. Called after the incident has been submitted so we can
+    link by incidentId.
+    """
+    _init_firebase()
+
+    now = int(time.time() * 1000)
+    transcript_data = {
+        **transcript_data,
+        "incidentId": incident_id,
+        "createdBy": user_uid,
+        "createdDate": now,
+    }
+
+    ref = db.reference("transcripts").push(transcript_data)
+    transcript_id = ref.key
+
+    # Append to incident's transcriptIds. Use a transaction to avoid clobbering
+    # concurrent appends.
+    def _append(current):
+        current = current or []
+        if transcript_id not in current:
+            current.append(transcript_id)
+        return current
+
+    db.reference(f"incidentForms/{incident_id}/transcriptIds").transaction(_append)
+
+    return transcript_id
+
+
+def get_transcripts_for_incident(incident_id: str) -> list[dict]:
+    """Fetch all transcripts linked to the given incident, ordered by createdDate."""
+    _init_firebase()
+
+    incident = db.reference(f"incidentForms/{incident_id}").get() or {}
+    transcript_ids = incident.get("transcriptIds", []) or []
+
+    transcripts = []
+    for tid in transcript_ids:
+        if not isinstance(tid, str):
+            continue
+        t = db.reference(f"transcripts/{tid}").get()
+        if t:
+            transcripts.append({"id": tid, **t})
+
+    transcripts.sort(key=lambda t: t.get("createdDate", 0))
+    return transcripts
+
+
+def upload_audio(incident_id: str, transcript_id: str, audio_bytes: bytes, content_type: str) -> str:
+    """
+    Upload an audio blob to Storage at audio/{incidentId}/{transcriptId}.webm
+    and return a long-lived signed URL so the frontend can play it back.
+    """
+    _init_firebase()
+
+    bucket = storage.bucket()
+    ext = "webm" if "webm" in content_type else ("m4a" if "mp4" in content_type else "bin")
+    blob = bucket.blob(f"audio/{incident_id}/{transcript_id}.{ext}")
+    blob.upload_from_string(audio_bytes, content_type=content_type)
+    blob.make_public()
+    return blob.public_url
+
+
+def delete_transcripts_for_incident(incident_id: str) -> None:
+    """Remove all transcripts + audio blobs linked to an incident. Used on incident delete."""
+    _init_firebase()
+
+    incident = db.reference(f"incidentForms/{incident_id}").get() or {}
+    transcript_ids = incident.get("transcriptIds", []) or []
+
+    for tid in transcript_ids:
+        if not isinstance(tid, str):
+            continue
+        db.reference(f"transcripts/{tid}").delete()
+
+    # Best-effort storage cleanup. Don't fail the delete if storage is
+    # misconfigured - the DB records are what matters for the audit trail.
+    try:
+        bucket = storage.bucket()
+        for blob in bucket.list_blobs(prefix=f"audio/{incident_id}/"):
+            blob.delete()
+    except Exception:
+        pass
