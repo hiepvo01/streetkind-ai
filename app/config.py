@@ -146,3 +146,11 @@ def get_safebase_prompt() -> str:
         age_group_keys=_option_keys("safebase", "age_group"),
         assistance_keys=_option_keys("safebase", "assistance_rendered"),
     )
+
+
+def get_incident_narrative_prompt() -> str:
+    app = get_app_config()
+    return load_prompt(
+        "incident_narrative.txt",
+        organisation_name=app["organisation_name"],
+    )

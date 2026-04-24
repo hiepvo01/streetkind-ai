@@ -1,7 +1,7 @@
 import os
 import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .auth import get_current_uid
 from .config import get_sites, get_form_types, get_all_form_fields, get_app_config
@@ -229,6 +229,36 @@ def delete_incident_route(form_id: str, caller_uid: str = Depends(get_current_ui
     _check_incident_access(form_id, caller_uid)
     delete_incident(form_id)
     return {"status": "deleted", "form_id": form_id}
+
+
+class IncidentNarrativeRequest(BaseModel):
+    """Current incident form state (same shape as /api/submit form_data for incidents)."""
+
+    form_data: dict
+
+
+@router.post("/api/incident/narrative")
+def post_incident_narrative(
+    req: IncidentNarrativeRequest,
+    _caller_uid: str = Depends(get_current_uid),
+):
+    """
+    Generate incidentDescription and incidentOutcome drafts from structured data
+    plus quickNote. Authenticated; does not read or write Firebase.
+    """
+    from .services.ai_extractor import generate_incident_narrative
+
+    try:
+        return generate_incident_narrative(req.form_data)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=f"Validation failed: {e}") from e
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Narrative generation failed: {str(e)}",
+        ) from e
 
 
 @router.get("/api/health")

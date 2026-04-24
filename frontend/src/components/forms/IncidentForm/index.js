@@ -1,22 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Button,
   Divider,
   Form,
   Header,
+  Message,
   Segment,
 } from 'semantic-ui-react';
 import ClientForm from '../ClientForm';
 import EncounteredBySection from './EncounteredBySection';
 import OtherServicesSection from './OtherServicesSection';
 import { createBlankClient } from '../../../utils/initialFormData';
+import { generateIncidentNarrative } from '../../../services/api';
+
+const NARRATIVE_OVERWRITE_CONFIRM_LEN = 40;
+
+const hasSubstantialNarrativeText = (inc) => {
+  const d = (inc.incidentDescription || '').trim();
+  const o = (inc.incidentOutcome || '').trim();
+  return d.length > NARRATIVE_OVERWRITE_CONFIRM_LEN || o.length > NARRATIVE_OVERWRITE_CONFIRM_LEN;
+};
 
 // ---------------------------------------------------------------------------
 // IncidentForm — matches SKSSIR IncidentForm.js field names exactly
 // ---------------------------------------------------------------------------
 const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   // data = { incident: {...}, clients: [...] }
+  const [magicLoading, setMagicLoading] = useState(false);
+  const [magicError, setMagicError] = useState(null);
+
   const incident = data.incident || {};
   const clients = data.clients || [];
   const location = incident.location || {};
@@ -53,6 +66,32 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
 
   const addBlankClient = () => {
     onChange({ ...data, clients: [...clients, createBlankClient()] });
+  };
+
+  const handleMagicGenerate = async () => {
+    setMagicError(null);
+    if (hasSubstantialNarrativeText(incident)) {
+      const ok = window.confirm(
+        'Replace existing incident description and outcome with AI-generated drafts? You can still edit them afterwards.'
+      );
+      if (!ok) return;
+    }
+    setMagicLoading(true);
+    try {
+      const draft = await generateIncidentNarrative(data);
+      onChange({
+        ...data,
+        incident: {
+          ...incident,
+          incidentDescription: draft.incidentDescription ?? '',
+          incidentOutcome: draft.incidentOutcome ?? '',
+        },
+      });
+    } catch (e) {
+      setMagicError(e.message || 'Generation failed');
+    } finally {
+      setMagicLoading(false);
+    }
   };
 
   const siteOptions = (sites || []).map((s) => ({
@@ -153,6 +192,24 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               rows={4}
               value={incident.quickNote || ''}
               onChange={(e, { value }) => handleIncidentField('quickNote', value)}
+            />
+            {magicError && (
+              <Message
+                error
+                content={magicError}
+                onDismiss={() => setMagicError(null)}
+              />
+            )}
+            <Button
+              type="button"
+              color="violet"
+              icon="magic"
+              labelPosition="left"
+              content="Magic generate (description & outcome)"
+              loading={magicLoading}
+              disabled={magicLoading}
+              onClick={handleMagicGenerate}
+              style={{ marginBottom: '1rem' }}
             />
             <Form.TextArea
               label="Incident Description"

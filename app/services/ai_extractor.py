@@ -6,12 +6,20 @@ structured output via tool use (guaranteed valid JSON matching the schema).
 All prompts and config are loaded from config/ files - not hardcoded here.
 """
 
+import json
 import os
 
 from anthropic import AnthropicFoundry
+from pydantic import ValidationError
 
-from ..config import get_app_config, get_incident_prompt, get_safebase_prompt
+from ..config import (
+    get_app_config,
+    get_incident_narrative_prompt,
+    get_incident_prompt,
+    get_safebase_prompt,
+)
 from ..schemas.combined_incident_schema import CombinedIncidentSchema
+from ..schemas.incident_narrative_schema import IncidentNarrativeDraft
 from ..schemas.safebase_schema import SafeBaseFormSchema
 
 # Singleton client - reuses HTTP connection pool across requests
@@ -131,3 +139,39 @@ def extract_safebase(transcript: str, site: str = "") -> dict:
     raw_input = _extract_tool_input(response)
     validated = SafeBaseFormSchema(**raw_input)
     return validated.model_dump(by_alias=True)
+
+
+def generate_incident_narrative(form_data: dict) -> dict:
+    """
+    From current structured incident + clients + quickNote, generate prose for
+    incidentDescription and incidentOutcome only (no Firebase writes).
+    """
+    validated = CombinedIncidentSchema(**form_data)
+    payload = validated.model_dump(mode="json", by_alias=True)
+    user_text = json.dumps(payload, ensure_ascii=False, indent=2)
+
+    client = _get_client()
+    tool = _build_tool(
+        name="write_incident_narrative",
+        description=(
+            "Return incidentDescription and incidentOutcome as professional prose. "
+            "Base content only on the JSON incident data in the user message."
+        ),
+        schema_class=IncidentNarrativeDraft,
+    )
+
+    response = client.messages.create(
+        model=_get_model(),
+        max_tokens=_get_max_tokens(),
+        system=get_incident_narrative_prompt(),
+        tools=[tool],
+        tool_choice={"type": "tool", "name": "write_incident_narrative"},
+        messages=[{"role": "user", "content": user_text}],
+    )
+
+    raw_input = _extract_tool_input(response)
+    try:
+        draft = IncidentNarrativeDraft(**raw_input)
+    except ValidationError as e:
+        raise ValueError(f"Invalid narrative tool output: {e}") from e
+    return draft.model_dump()

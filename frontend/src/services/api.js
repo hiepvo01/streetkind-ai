@@ -42,6 +42,26 @@ export const extractForm = async (transcript, formType, site) => {
     return response.json();
 };
 
+export const generateIncidentNarrative = async (formData) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch('/api/incident/narrative', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ form_data: formData }),
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        let msg = err.detail ?? 'Narrative generation failed';
+        if (Array.isArray(msg)) {
+            msg = msg.map((x) => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join('; ');
+        }
+        throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    }
+
+    return response.json();
+};
+
 export const submitForm = async (formType, formData, status = 'completed') => {
     const headers = await getAuthHeaders();
     const response = await fetch(apiUrl('/api/submit'), {
