@@ -178,6 +178,32 @@ def get_incident(form_id: str, caller_uid: str = Depends(get_current_uid)):
     return _check_incident_access(form_id, caller_uid)
 
 
+def _check_safebase_access(form_id: str, caller_uid: str):
+    """Verify the caller is the SafeBase creator or an ancestor. Returns the SafeBase data."""
+    from .services.firebase_client import get_all_users, is_ancestor, get_safebase_full
+
+    if not _RTDB_PUSH_ID_RE.match(form_id):
+        raise HTTPException(status_code=400, detail="Invalid form_id")
+
+    data = get_safebase_full(form_id)
+    if not data:
+        raise HTTPException(404, detail="SafeBase form not found")
+
+    owner_uid = data.get("createdBy", "")
+    all_users = get_all_users()
+
+    if not is_ancestor(caller_uid, owner_uid, all_users):
+        raise HTTPException(403, detail="Access denied: SafeBase form is outside your hierarchy")
+
+    return data
+
+
+@router.get("/api/forms/safebase/{form_id}")
+def get_safebase(form_id: str, caller_uid: str = Depends(get_current_uid)):
+    """Fetch full SafeBase form data."""
+    return _check_safebase_access(form_id, caller_uid)
+
+
 class UpdateIncidentRequest(BaseModel):
     form_data: dict
     status: str = "completed"

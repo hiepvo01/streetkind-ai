@@ -105,6 +105,16 @@ export const fetchIncidentFull = async (formId) => {
     return response.json();
 };
 
+export const fetchSafebaseFull = async (formId) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(apiUrl(`/api/forms/safebase/${formId}`), { headers });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to fetch SafeBase form');
+    }
+    return response.json();
+};
+
 export const updateIncident = async (formId, formData, status = 'completed') => {
     const headers = await getAuthHeaders();
     const response = await fetch(apiUrl(`/api/forms/incident/${formId}`), {

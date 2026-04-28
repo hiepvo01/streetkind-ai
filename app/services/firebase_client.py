@@ -210,6 +210,15 @@ def get_forms_by_user(uid: str) -> dict:
     }
 
 
+def get_safebase_full(form_id: str) -> dict | None:
+    """Fetch a single SafeBase form from Firebase."""
+    _init_firebase()
+    safebase = db.reference(f"safeSpaceForms/{form_id}").get()
+    if safebase is None:
+        return None
+    return safebase
+
+
 # ── Single-incident CRUD ──────────────────────────────────────────────
 
 
