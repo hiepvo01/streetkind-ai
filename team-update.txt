@@ -1,0 +1,131 @@
+Team update — 25 Apr 2026
+============================
+
+Status: app is live, both open MRs are merged, new features deployed.
+
+Live URLs
+---------
+Frontend:   https://streetkind-app-dev.web.app
+Backend:    https://46-62-215-38.sslip.io
+Project:    streetkind-app-dev (Firebase, Blaze plan)
+
+Demo accounts (all password streetkind123):
+  admin@streetkind.demo       Administrator
+  leader@streetkind.demo      Team Leader
+  volunteer@streetkind.demo   Team Member
+
+
+What just merged
+----------------
+
+MR !7 — feat: SafeBase start time + monitor tabs (commits 44e1dd8, 4dc5bb1)
+  - SafeBase form persists startTime through validation + display
+  - Monitor / My Incidents now have separate Incident / SafeBase tabs
+  - Start-time column added to the SafeBase list
+  - New API endpoint: GET /api/forms/safebase/{id} (hierarchy-scoped)
+
+MR !6 — feat(incident): improve incident form experience (commits dc07e7f → 54e6c61)
+  - Added quickNote field on incident forms (textarea above description)
+  - Magic-generate-narrative button via authenticated /api/incident/narrative
+  - Per-user rate limit on narrative generation (prevents Foundry token blowups)
+  - Geolocation pre-fill of address from device location
+  - Reverse-geocode proxy at /api/geocode/reverse (cached + rate-limited)
+  - Incident form shows the createdDate timestamp
+
+Both branches were rebased on latest main (which already had the
+StreetKind/SK rename + transcript + audio storage + signed URLs +
+audit fixes), tested, and fast-forwarded.
+
+
+Voice + audio storage (already shipped, prior round)
+-----------------------------------------------------
+
+If you were looking for the voice recordings: they are NOT in RTDB
+(transcripts/ holds the text + a path pointer only). The audio blobs
+live in Firebase Storage:
+
+  https://console.firebase.google.com/u/1/project/streetkind-app-dev/storage
+
+Inside the bucket: audio/<incidentId>/<transcriptId>.{webm|m4a}
+
+Why split: RTDB charges per-byte read on every fetch, bad for ~1 MB
+audio. Storage is built for binary blobs and supports signed URLs.
+
+Privacy model: blobs are private. The backend mints fresh 1-hour v4
+signed URLs on read (see signed_audio_url() in firebase_client.py).
+A leaked URL expires. RTDB stores only the blob path, never a long-
+lived URL. Old records that still have a public-URL `audioUrl` keep
+working via the legacy fallback in get_transcripts_for_incident().
+
+Endpoints to integrate against (all hierarchy-scoped):
+  POST /api/forms/incident/{id}/transcripts            create transcript
+  POST /api/forms/incident/{id}/transcripts/{tid}/audio multipart audio upload
+  GET  /api/forms/incident/{id}/transcripts            list (each gets fresh signed URL)
+
+
+Test suite — 36 collected, 32 always-on pass, 4 AI-gated
+---------------------------------------------------------
+
+  test_login.py             5  login + logout flows
+  test_dashboard.py         2  11 stat labels + non-zero values
+  test_incident_form.py     2  UI render + API submit + Firebase verify
+  test_incident_crud.py     4  full CRUD + access control + invalid ID
+  test_safebase_form.py     2  UI switch + API submit + Firebase verify
+  test_transcripts.py       8  text + audio roundtrip + 4 security + 1 concurrency
+  test_responsive.py        9  3 viewports × 3 checks
+  test_ai_extract.py        4  Foundry extraction (skipped unless RUN_AI_TESTS=1)
+  ----- new in MR !6 (unit) -----
+  test_geocode_proxy.py     2  reverse geocode caching + rate limit
+  test_incident_narrative.py 2  narrative drafts + invalid form
+  test_narrative_rate_limit.py 3  per-user rate cap
+
+All tests auto-clean their Firebase records after each run.
+
+
+Known temporary / placeholders
+-------------------------------
+
+- sslip.io domain for the backend. Works but Let's Encrypt rate-limits
+  shared sslip.io subdomains. Replace with a real domain ($1-10/yr at
+  Cloudflare Registrar or Namecheap) before anything external depends on
+  the backend URL being stable across cert renewals.
+
+- GitLab → GitHub mirror. Coolify can't reach UTS GitLab on port 22, so
+  Coolify pulls from a private GitHub copy at hiepvo01/streetkind-ai.
+  We push to both remotes manually right now. To automate: UTS GitLab
+  → Settings → Repository → Mirroring repositories with a GitHub PAT.
+
+- 66 original SKSSIR users from tk-foundation are NOT migrated to
+  streetkind-app-dev Firebase Auth. Their RTDB records exist; their
+  passwords don't. Currently only the 3 demo accounts can log in.
+
+
+Action needed from you
+----------------------
+
+1. Coolify auto-deploy didn't fire after the latest push. Click
+   "Redeploy" on the streetkind-backend app so the new SafeBase fetch /
+   narrative / geocode endpoints land on prod. Verify after with:
+
+     curl -sSk -m 10 -o /dev/null -w "%%{http_code}\n" \
+       https://46-62-215-38.sslip.io/api/forms/safebase/junk \
+       -H "Authorization: Bearer fake"
+
+   Should return 400 (route exists, push-ID regex rejects "junk"),
+   not 404 (route missing).
+
+2. After backend redeploys, optionally rerun the prod-targeted suite:
+
+     API_BASE_URL=https://46-62-215-38.sslip.io \
+     FIREBASE_SERVICE_ACCOUNT_PATH=<path> \
+     FIREBASE_STORAGE_BUCKET=streetkind-app-dev.firebasestorage.app \
+     python -m pytest tests/e2e/test_transcripts.py -v
+
+
+Documentation
+-------------
+
+  README.md         project overview + API reference + getting started
+  DEPLOYMENT.md     full deployment playbook (Coolify, Firebase, signed URLs, audit)
+  FEATURES.md       user-facing feature list
+  demo-accounts.txt demo credentials + tk-foundation migration steps
