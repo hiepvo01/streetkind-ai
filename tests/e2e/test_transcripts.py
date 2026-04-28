@@ -365,7 +365,40 @@ class TestTranscriptRoundtrip:
                 f"transcript has stored audioUrl - should only be signed at read time: {raw.get('audioUrl')}"
             )
             blob_path = raw["audioPath"]
-            assert blob_path.startswith(f"audio/{incident_id}/"), blob_path
+
+            # Storage location contract: path is exactly
+            # `audio/<incidentId>/<transcriptId>.<ext>` with a known audio ext.
+            # Anything else means the upload landed in the wrong place.
+            import re as _re
+            path_match = _re.fullmatch(
+                rf"audio/{_re.escape(incident_id)}/{_re.escape(transcript_id)}\.(webm|m4a|ogg|mp3|bin)",
+                blob_path,
+            )
+            assert path_match, (
+                f"Audio stored at unexpected path. "
+                f"Expected audio/{incident_id}/{transcript_id}.<ext>, got {blob_path!r}"
+            )
+
+            # Verify via Admin SDK that the blob actually exists in the bucket
+            # at the path the RTDB record claims. This catches the bug where the
+            # path is recorded but the bytes never landed (or vice versa).
+            try:
+                from firebase_admin import storage as _fb_storage
+                _bucket = _fb_storage.bucket()
+                _live_blob = _bucket.blob(blob_path)
+                _live_blob.reload()  # raises if not found
+                assert _live_blob.size == len(audio_bytes), (
+                    f"Storage blob size mismatch: bucket has {_live_blob.size} bytes, "
+                    f"uploaded {len(audio_bytes)}"
+                )
+                assert _live_blob.content_type and "audio/" in _live_blob.content_type, (
+                    f"Storage blob content-type wrong: {_live_blob.content_type}"
+                )
+            except Exception as e:
+                pytest.fail(
+                    f"Storage blob check failed - file is not at the expected location "
+                    f"audio/{incident_id}/{transcript_id}.<ext>: {e}"
+                )
 
             # List endpoint should return a freshly-signed URL (different signature query)
             r2 = requests.get(
