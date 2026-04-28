@@ -26,6 +26,9 @@ class ReverseGeocodeResult:
     raw: dict[str, Any] | None = None
 
 
+# In-process only: under gunicorn/uvicorn multi-worker, each worker has its own
+# dicts so effective cache hit rate and rate limits scale ~linearly with workers.
+# Use Redis (or similar) if you need a single global cap or shared cache.
 _cache: dict[str, tuple[float, ReverseGeocodeResult]] = {}
 _rate: dict[str, list[float]] = {}
 

@@ -75,13 +75,23 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
       }
 
       const res = await reverseGeocode(lat, lon);
+      const typedAddress = (location.address || '').trim();
+      const resolvedAddress = (res.address || '').trim();
+      if (typedAddress && resolvedAddress) {
+        const ok = window.confirm(
+          'Replace the current address with the address detected from your location?'
+        );
+        if (!ok) {
+          return;
+        }
+      }
       onChange({
         ...data,
         incident: {
           ...incident,
           location: {
             ...location,
-            address: res.address ?? location.address ?? '',
+            address: resolvedAddress || typedAddress || location.address || '',
             latitude: res.latitude ?? lat,
             longitude: res.longitude ?? lon,
           },

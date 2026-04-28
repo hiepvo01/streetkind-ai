@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -12,6 +13,7 @@ from .schemas.safebase_schema import SafeBaseFormSchema
 from .schemas.transcript_schema import TranscriptSchema
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 MAX_TRANSCRIPT_LENGTH = int(os.getenv("MAX_TRANSCRIPT_LENGTH", "5000"))
 _RTDB_PUSH_ID_RE = re.compile(r"^-[A-Za-z0-9_-]{19}$")
@@ -217,7 +219,12 @@ def update_incident_route(form_id: str, req: UpdateIncidentRequest, caller_uid: 
     _check_incident_access(form_id, caller_uid)
 
     validated = CombinedIncidentSchema(**req.form_data)
-    update_incident(form_id, validated.model_dump(by_alias=True), caller_uid, req.status)
+    update_incident(
+        form_id,
+        validated.model_dump(by_alias=True, exclude_none=True),
+        caller_uid,
+        req.status,
+    )
     return {"status": "updated", "form_id": form_id}
 
 
@@ -261,9 +268,10 @@ def post_incident_narrative(
             raise HTTPException(status_code=429, detail=msg) from e
         raise HTTPException(status_code=502, detail=msg) from e
     except Exception as e:
+        logger.exception("Incident narrative generation failed")
         raise HTTPException(
             status_code=502,
-            detail=f"Narrative generation failed: {str(e)}",
+            detail="Narrative generation failed. Please try again later.",
         ) from e
 
 
@@ -283,7 +291,7 @@ def reverse_geocode_route(
 
     # Identify ourselves per Nominatim usage policy.
     # Prefer env override so deployments can set a valid contact string.
-    ua = os.getenv("NOMINATIM_USER_AGENT", "Streetkind-AI/0.1 (contact: ops@streetkind.example)")
+    ua = os.getenv("NOMINATIM_USER_AGENT", "StreetKind-AI/0.1 (contact: ops@streetkind.example)")
 
     try:
         res = reverse_geocode(lat=lat, lon=lon, caller_key=caller_uid, user_agent=ua)
@@ -537,7 +545,10 @@ def submit_form(req: SubmitRequest, caller_uid: str = Depends(get_current_uid)):
 
     try:
         validated = schema_class(**req.form_data)
-        push_kwargs = {"data": validated.model_dump(by_alias=True), "user_uid": caller_uid}
+        push_kwargs = {
+            "data": validated.model_dump(by_alias=True, exclude_none=True),
+            "user_uid": caller_uid,
+        }
         if req.form_type == "incident":
             push_kwargs["status"] = req.status
         key = push_fn(**push_kwargs)

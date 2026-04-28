@@ -50,6 +50,8 @@ class IncidentFormSchema(BaseModel):
 
     teamLeaderName: str = ""
     site: str = ""
+    # RTDB epoch ms; optional so extraction payloads need not set it.
+    startTime: Optional[int] = None
     location: Location = Location()
     encounteredBy: EncounteredBy = EncounteredBy()
     otherServicesInvolved: OtherServicesInvolved = OtherServicesInvolved()
