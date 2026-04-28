@@ -65,6 +65,7 @@ export function createEmptyIncidentFormData(defaultSite = '') {
 export function createEmptySafeBaseFormData(defaultSite = '') {
     return {
         site: defaultSite || '',
+        startTime: Date.now(),
         male: zeroGenderAge(),
         female: zeroGenderAge(),
         nonBinary: zeroGenderAge(),

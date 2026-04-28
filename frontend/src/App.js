@@ -77,7 +77,12 @@ const App = () => {
     };
 
     const handleExtracted = (result, meta) => {
-        setFormData(result);
+        setFormData((prev) => {
+            if (formType === 'safebase') {
+                return { ...result, startTime: prev?.startTime ?? Date.now() };
+            }
+            return result;
+        });
         setExtractionMeta({
             model: config?.ai_model || '',
             ...(meta || {}),

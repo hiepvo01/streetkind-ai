@@ -63,7 +63,7 @@ def _push_form(form_type_key: str, data: dict, user_uid: str) -> str:
     data.update({
         "createdBy": user_uid,
         "createdDate": now,
-        "startTime": data.get("startTime", now),
+        "startTime": data.get("startTime") or now,
         "schemaName": ft["schema_name"],
         "schemaVersion": ft["schema_version"],
         "editedBy": "",
@@ -195,6 +195,7 @@ def get_forms_by_user(uid: str) -> dict:
             "id": form_id,
             "site": d.get("site", ""),
             "createdDate": d.get("createdDate"),
+            "startTime": d.get("startTime"),
         }
 
     return {

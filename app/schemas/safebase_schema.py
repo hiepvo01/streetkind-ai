@@ -3,6 +3,8 @@ Pydantic models matching the SKSSIR safeSpaceForms/{id} schema.
 Used as the structured output target for Claude extraction.
 """
 
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -26,6 +28,7 @@ class SafeBaseFormSchema(BaseModel):
     """Matches the SKSSIR safeSpaceForms node structure."""
 
     site: str = ""
+    startTime: Optional[int] = None
     male: GenderAgeCount = GenderAgeCount()
     female: GenderAgeCount = GenderAgeCount()
     nonBinary: GenderAgeCount = GenderAgeCount()

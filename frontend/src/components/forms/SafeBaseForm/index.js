@@ -4,6 +4,14 @@ import { Divider, Header, Label, Segment } from 'semantic-ui-react';
 import PeopleCountSection from './PeopleCountSection';
 import AssistanceSection from './AssistanceSection';
 
+const formatStartTime = (ms) => {
+  if (ms == null || Number.isNaN(Number(ms))) return null;
+  return new Date(Number(ms)).toLocaleString('en-AU', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+};
+
 const SafeBaseForm = ({ data, onChange, fieldOptions }) => {
   // GET /api/config returns field_options.safebase as a merged object (e.g. assistance_rendered: [...]).
   // AssistanceSection expects an array and calls .map() on it — pass that array, not the whole object.
@@ -31,12 +39,24 @@ const SafeBaseForm = ({ data, onChange, fieldOptions }) => {
     });
   };
 
+  const timeLabel = formatStartTime(data.startTime);
+
   return (
     <div>
-      {data.site && (
+      {(data.site || timeLabel) && (
         <Segment secondary>
           <Header as='h4'>
-            Site: <Label>{data.site}</Label>
+            {data.site && (
+              <>
+                Site: <Label>{data.site}</Label>
+              </>
+            )}
+            {data.site && timeLabel && ' · '}
+            {timeLabel && (
+              <>
+                Time: <Label>{timeLabel}</Label>
+              </>
+            )}
           </Header>
         </Segment>
       )}
@@ -64,6 +84,7 @@ const SafeBaseForm = ({ data, onChange, fieldOptions }) => {
 SafeBaseForm.propTypes = {
   data: PropTypes.shape({
     site: PropTypes.string,
+    startTime: PropTypes.number,
     male: PropTypes.object,
     female: PropTypes.object,
     nonBinary: PropTypes.object,
