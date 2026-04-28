@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     Container,
     Grid,
@@ -44,12 +44,21 @@ const VoiceInput = ({
     const [isRecording, setIsRecording] = useState(false);
     const [extracting, setExtracting] = useState(false);
     const [error, setError] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
     const recognitionRef = useRef(null);
     const finalTranscriptRef = useRef('');
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const mediaStreamRef = useRef(null);
     const recordingStartMsRef = useRef(null);
+
+    // Revoke any object URL when this component unmounts or a new recording
+    // replaces it - browsers leak memory otherwise.
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
 
     const stopAudioCapture = useCallback(() => {
         const mr = mediaRecorderRef.current;
@@ -81,6 +90,11 @@ const VoiceInput = ({
         if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
             return; // speech-to-text only; no audio storage on this browser
         }
+        // Clear any prior preview so the player resets for the new recording.
+        setPreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+        });
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
@@ -100,8 +114,13 @@ const VoiceInput = ({
                     ? Date.now() - recordingStartMsRef.current
                     : 0;
                 audioChunksRef.current = [];
-                if (blob.size > 0 && onRecordingCaptured) {
-                    onRecordingCaptured({ blob, durationMs });
+                if (blob.size > 0) {
+                    // Local preview URL for immediate playback before submit.
+                    setPreviewUrl((prev) => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return URL.createObjectURL(blob);
+                    });
+                    if (onRecordingCaptured) onRecordingCaptured({ blob, durationMs });
                 }
             };
             recorder.start();
@@ -244,6 +263,19 @@ const VoiceInput = ({
                                         placeholder='Your speech will appear here...'
                                     />
                                 </Form>
+                                {previewUrl && (
+                                    <div style={{ marginTop: '0.75rem' }}>
+                                        <Header as='h5' style={{ marginBottom: '0.3rem' }}>
+                                            <Icon name='play circle' color='blue' />
+                                            Recording preview
+                                        </Header>
+                                        <audio
+                                            controls
+                                            src={previewUrl}
+                                            style={{ width: '100%' }}
+                                        />
+                                    </div>
+                                )}
                                 <Button
                                     color='green'
                                     size='large'
