@@ -31,3 +31,4 @@ docs/superpowers/
 
 # Firebase deploy artefacts
 .firebase/
+tests/e2e/screenshots/
