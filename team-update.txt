@@ -100,26 +100,43 @@ Known temporary / placeholders
   passwords don't. Currently only the 3 demo accounts can log in.
 
 
-Action needed from you
-----------------------
+Verification done on prod
+--------------------------
 
-1. Coolify auto-deploy didn't fire after the latest push. Click
-   "Redeploy" on the streetkind-backend app so the new SafeBase fetch /
-   narrative / geocode endpoints land on prod. Verify after with:
+After backend redeploy, all three new endpoints from MR !6 + !7 respond
+correctly on https://46-62-215-38.sslip.io:
 
-     curl -sSk -m 10 -o /dev/null -w "%%{http_code}\n" \
-       https://46-62-215-38.sslip.io/api/forms/safebase/junk \
-       -H "Authorization: Bearer fake"
+  GET  /api/forms/safebase/{id}     -> 401 (auth required)  [from MR !7]
+  POST /api/incident/narrative      -> 401 (auth required)  [from MR !6]
+  GET  /api/geocode/reverse         -> 401 (auth required)  [from MR !6]
 
-   Should return 400 (route exists, push-ID regex rejects "junk"),
-   not 404 (route missing).
+Prod-targeted test runs:
 
-2. After backend redeploys, optionally rerun the prod-targeted suite:
+  test_transcripts.py     8/8 passed (incl. audio roundtrip with
+                                       full location verification)
+  test_incident_crud.py   4/4 passed
 
-     API_BASE_URL=https://46-62-215-38.sslip.io \
-     FIREBASE_SERVICE_ACCOUNT_PATH=<path> \
-     FIREBASE_STORAGE_BUCKET=streetkind-app-dev.firebasestorage.app \
-     python -m pytest tests/e2e/test_transcripts.py -v
+Audio storage verification - the `test_audio_upload_roundtrip` test
+explicitly asserts (against live prod):
+
+  - Upload returns 200 + a v4 signed URL (X-Goog-Signature)
+  - RTDB stores audioPath only, no long-lived URL
+  - Path matches exact regex
+      `audio/<incidentId>/<transcriptId>.(webm|m4a|ogg|mp3|bin)`
+  - Admin SDK confirms blob exists at that path with matching size
+    + audio/* content-type
+  - Signed URL serves byte-exact uploaded data
+  - Same blob without signature is denied (401/403/404)
+  - Incident delete wipes both RTDB record and Storage blob
+
+
+How to re-run the prod suite
+----------------------------
+
+  API_BASE_URL=https://46-62-215-38.sslip.io \
+  FIREBASE_SERVICE_ACCOUNT_PATH=<path-to-service-account.json> \
+  FIREBASE_STORAGE_BUCKET=streetkind-app-dev.firebasestorage.app \
+  python -m pytest tests/e2e/test_transcripts.py tests/e2e/test_incident_crud.py -v
 
 
 Documentation
