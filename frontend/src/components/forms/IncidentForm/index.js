@@ -15,6 +15,8 @@ import { createBlankClient } from '../../../utils/initialFormData';
 import { generateIncidentNarrative, reverseGeocode } from '../../../services/api';
 
 const NARRATIVE_OVERWRITE_CONFIRM_LEN = 40;
+/** Brief client-side cooldown after a successful Magic call to reduce double-clicks (backend still enforces per-minute cap). */
+const MAGIC_CLIENT_COOLDOWN_MS = 8000;
 
 const hasSubstantialNarrativeText = (inc) => {
   const d = (inc.incidentDescription || '').trim();
@@ -28,6 +30,7 @@ const hasSubstantialNarrativeText = (inc) => {
 const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   // data = { incident: {...}, clients: [...] }
   const [magicLoading, setMagicLoading] = useState(false);
+  const [magicCooldown, setMagicCooldown] = useState(false);
   const [magicError, setMagicError] = useState(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
@@ -136,6 +139,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
           incidentOutcome: draft.incidentOutcome ?? '',
         },
       });
+      setMagicCooldown(true);
+      setTimeout(() => setMagicCooldown(false), MAGIC_CLIENT_COOLDOWN_MS);
     } catch (e) {
       setMagicError(e.message || 'Generation failed');
     } finally {
@@ -290,7 +295,7 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               labelPosition="left"
               content="Magic generate (description & outcome)"
               loading={magicLoading}
-              disabled={magicLoading}
+              disabled={magicLoading || magicCooldown}
               onClick={handleMagicGenerate}
               style={{ marginBottom: '1rem' }}
             />

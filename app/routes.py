@@ -240,20 +240,26 @@ class IncidentNarrativeRequest(BaseModel):
 @router.post("/api/incident/narrative")
 def post_incident_narrative(
     req: IncidentNarrativeRequest,
-    _caller_uid: str = Depends(get_current_uid),
+    caller_uid: str = Depends(get_current_uid),
 ):
     """
     Generate incidentDescription and incidentOutcome drafts from structured data
     plus quickNote. Authenticated; does not read or write Firebase.
+    Per-user rate limit (default 10/min, env-tunable) limits LLM spend.
     """
     from .services.ai_extractor import generate_incident_narrative
+    from .services.narrative_rate_limit import enforce_incident_narrative_rate_limit
 
     try:
+        enforce_incident_narrative_rate_limit(caller_uid)
         return generate_incident_narrative(req.form_data)
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=f"Validation failed: {e}") from e
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        msg = str(e)
+        if "Rate limit" in msg:
+            raise HTTPException(status_code=429, detail=msg) from e
+        raise HTTPException(status_code=502, detail=msg) from e
     except Exception as e:
         raise HTTPException(
             status_code=502,
