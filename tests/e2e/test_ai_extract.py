@@ -73,10 +73,16 @@ class TestAIExtraction:
         assert r.status_code == 200, r.text
         data = r.json()
         assert data.get("site") == "darlingHarbour"
-        # People counts should be non-zero matching the transcript numbers
-        people = data.get("people", {})
-        # Structure allows either nested {male:{18to25: 3}} or flat - accept either
-        assert people, "SafeBase extraction returned empty people counts"
+
+        # SafeBase response has top-level male/female/nonBinary -> GenderAgeCount
+        # with from-prefixed age keys. Anything else is a prompt/schema regression.
+        assert data["male"]["from18to25"] == 3, f"male.from18to25 should be 3: {data['male']}"
+        assert data["female"]["lessThan18"] == 2, f"female.lessThan18 should be 2: {data['female']}"
+        assert data["nonBinary"]["from26to39"] == 1, (
+            f"nonBinary.from26to39 should be 1: {data['nonBinary']}"
+        )
+        assert data["assistanceRendered"]["directions"] == 4
+        assert data["assistanceRendered"]["deviceCharge"] == 2
 
     def test_extract_empty_transcript_rejected(self):
         r = requests.post(

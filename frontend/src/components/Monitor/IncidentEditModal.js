@@ -48,6 +48,11 @@ const TranscriptPanel = ({ transcripts }) => {
                     </Header>
                     {t.audioUrl ? (
                         <audio controls src={t.audioUrl} style={{ width: '100%', marginBottom: '0.5rem' }} />
+                    ) : t.audioPath ? (
+                        <Message warning size='tiny' style={{ marginBottom: '0.5rem' }}>
+                            <Icon name='warning sign' />
+                            Audio file recorded but cannot be loaded right now (signed URL expired or storage unreachable). Reopen the incident to retry.
+                        </Message>
                     ) : null}
                     <p style={{ whiteSpace: 'pre-wrap', marginTop: '0.3rem' }}>{t.text}</p>
                     {t.extractionMeta && (t.extractionMeta.model || t.extractionMeta.latencyMs) && (
@@ -79,12 +84,14 @@ const IncidentEditModal = ({
     const [editError, setEditError] = useState(null);
     const [saving, setSaving] = useState(false);
     const [transcripts, setTranscripts] = useState(null);
+    const [transcriptsError, setTranscriptsError] = useState(null);
 
     useEffect(() => {
         if (!open || !formId) {
             setEditFormData(null);
             setEditError(null);
             setTranscripts(null);
+            setTranscriptsError(null);
             return;
         }
         let cancelled = false;
@@ -93,14 +100,24 @@ const IncidentEditModal = ({
             setEditError(null);
             setEditFormData(null);
             setTranscripts(null);
+            setTranscriptsError(null);
             try {
-                const [data, transcriptData] = await Promise.all([
-                    fetchIncidentFull(formId),
-                    fetchIncidentTranscripts(formId).catch(() => ({ transcripts: [] })),
-                ]);
-                if (!cancelled) {
-                    setEditFormData(data);
-                    setTranscripts(transcriptData?.transcripts || []);
+                // Fetch incident first - if THAT fails, we abort.
+                const data = await fetchIncidentFull(formId);
+                if (cancelled) return;
+                setEditFormData(data);
+
+                // Transcripts are best-effort - don't fail the modal open, but
+                // distinguish "really empty" from "fetch failed" so the panel
+                // shows an error message instead of lying with "no transcripts".
+                try {
+                    const transcriptData = await fetchIncidentTranscripts(formId);
+                    if (!cancelled) setTranscripts(transcriptData?.transcripts || []);
+                } catch (transcriptErr) {
+                    if (!cancelled) {
+                        setTranscriptsError(transcriptErr.message || 'Failed to load transcripts');
+                        setTranscripts([]);
+                    }
                 }
             } catch (e) {
                 if (!cancelled) setEditError(e.message);
@@ -130,6 +147,7 @@ const IncidentEditModal = ({
         setEditFormData(null);
         setEditError(null);
         setTranscripts(null);
+        setTranscriptsError(null);
         onClose();
     };
 
@@ -164,6 +182,12 @@ const IncidentEditModal = ({
                                     <Icon name='microphone' />
                                     Voice Transcripts
                                 </Header>
+                                {transcriptsError && (
+                                    <Message warning size='small'>
+                                        <Icon name='warning sign' />
+                                        Could not load transcripts: {transcriptsError}
+                                    </Message>
+                                )}
                                 <TranscriptPanel transcripts={transcripts} />
                                 <Divider />
                             </>

@@ -8,6 +8,7 @@ export const createBlankClient = () => ({
     contactNumber: '',
     suburb: '',
     alone: false,
+    startTime: null,
     intoxicationSigns: { speech: false, balance: false, coordination: false, behaviour: false, notVisible: false },
     drugUseSigns: { observed: false, visibleSigns: false, disclosed: false, notVisible: false },
     offensiveConduct: { offensiveBehaviour: false, offensiveLanguage: false, obstruction: false, publicDrinking: false, notVisible: false },

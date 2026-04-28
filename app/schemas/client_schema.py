@@ -148,6 +148,10 @@ class ClientFormSchema(BaseModel):
     suburb: str = ""
     alone: bool = False
 
+    # SKSSIR copies the parent incident's startTime onto each client at write
+    # time. Declared here so PUT round-trips don't silently drop it.
+    startTime: Optional[int] = None
+
     # Section 1: Risk Assessment
     intoxicationSigns: IntoxicationSigns = IntoxicationSigns()
     drugUseSigns: ObservedVisibleDisclosed = ObservedVisibleDisclosed()

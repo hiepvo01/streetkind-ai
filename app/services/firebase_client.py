@@ -241,6 +241,27 @@ def _normalise_tk_to_sk(incident: dict) -> dict:
     return incident
 
 
+def _normalise_legacy_client(client: dict) -> dict:
+    """
+    Legacy client records may have:
+    - `safeBase` blob (lower-case b) instead of `safeSpace` - 67 records
+      observed in production. Fold into safeSpace where missing.
+
+    Mutates and returns the dict.
+    """
+    if not isinstance(client, dict):
+        return client
+
+    legacy_safebase = client.get("safeBase")
+    safe_space = client.get("safeSpace")
+    if isinstance(legacy_safebase, dict):
+        if not isinstance(safe_space, dict) or not any(safe_space.values()):
+            # Lift legacy blob into the modern field
+            client["safeSpace"] = legacy_safebase
+        client.pop("safeBase", None)
+    return client
+
+
 def get_incident_full(form_id: str) -> dict | None:
     """Fetch a single incident and its associated clients from Firebase."""
     _init_firebase()
@@ -256,7 +277,7 @@ def get_incident_full(form_id: str) -> dict | None:
         if isinstance(cid, str):
             client_data = db.reference(f"clients/{cid}").get()
             if client_data:
-                clients.append(client_data)
+                clients.append(_normalise_legacy_client(client_data))
 
     return {"incident": incident, "clients": clients}
 

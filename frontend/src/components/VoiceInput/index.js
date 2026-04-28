@@ -44,6 +44,7 @@ const VoiceInput = ({
     const [isRecording, setIsRecording] = useState(false);
     const [extracting, setExtracting] = useState(false);
     const [error, setError] = useState(null);
+    const [warning, setWarning] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const recognitionRef = useRef(null);
     const finalTranscriptRef = useRef('');
@@ -88,13 +89,15 @@ const VoiceInput = ({
             return; // audio storage disabled at build time (REACT_APP_ENABLE_AUDIO)
         }
         if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-            return; // speech-to-text only; no audio storage on this browser
+            setWarning('Audio recording is not supported in this browser. Speech-to-text may still work.');
+            return;
         }
         // Clear any prior preview so the player resets for the new recording.
         setPreviewUrl((prev) => {
             if (prev) URL.revokeObjectURL(prev);
             return null;
         });
+        setWarning(null);
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
@@ -126,8 +129,17 @@ const VoiceInput = ({
             recorder.start();
             mediaRecorderRef.current = recorder;
         } catch (e) {
-            // Mic permission denied or hardware issue - speech-to-text may still
-            // work (it requests its own permission) so don't block the flow.
+            // Mic permission denied or hardware issue - surface a non-blocking
+            // warning so the volunteer knows audio won't be saved. Speech-to-text
+            // may still work (it asks for its own permission via the
+            // SpeechRecognition API).
+            const reason = e?.name === 'NotAllowedError'
+                ? 'Microphone permission was denied'
+                : (e?.message || 'Audio recording failed to start');
+            setWarning(
+                `${reason}. Voice transcript will still try to record but no audio file will be saved. `
+                + `Click the camera icon in your browser address bar to grant microphone access, then reload.`
+            );
         }
     }, [onRecordingCaptured]);
 
@@ -246,6 +258,20 @@ const VoiceInput = ({
                     <Grid.Row>
                         <Grid.Column width={16}>
                             <Message error content={error} onDismiss={() => setError(null)} />
+                        </Grid.Column>
+                    </Grid.Row>
+                )}
+
+                {warning && (
+                    <Grid.Row>
+                        <Grid.Column width={16}>
+                            <Message warning onDismiss={() => setWarning(null)}>
+                                <Message.Header>
+                                    <Icon name='warning sign' />
+                                    Audio recording disabled
+                                </Message.Header>
+                                <p>{warning}</p>
+                            </Message>
                         </Grid.Column>
                     </Grid.Row>
                 )}
