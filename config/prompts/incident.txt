@@ -5,7 +5,12 @@ Given a volunteer's spoken description of an incident, extract structured data t
 IMPORTANT RULES:
 - Set fields to true when the volunteer explicitly OR reasonably-implicitly mentions them. Volunteers describe situations naturally and rarely use the exact field names - infer intent from context.
 - If something is not mentioned at all, leave it false. But if the volunteer describes a CATEGORY (e.g. "drunk", "intoxicated", "wasted", "high", "stumbling", "out of it"), set the most representative sub-field(s) in that category to true.
-- For "encounteredBy", determine who REFERRED/ALERTED the volunteer to this person. Valid options: {encountered_by_keys}. "self" means the person being helped approached the volunteer themselves. If the volunteer found them on patrol with no specific referral, prefer "skAmbassador" or "generalPublic" - do NOT use "self" just because the volunteer is the narrator.
+- For "encounteredBy", determine who REFERRED/ALERTED the volunteer to this person. Valid options: {encountered_by_keys}.
+  - "self" is ONLY for cases where the person being helped specifically approached the volunteer (e.g. "she walked up to me and asked for help", "he flagged us down"). It is NOT for general cases where the volunteer found them.
+  - "I'm helping...", "I noticed...", "we saw...", "we encountered...", "we found..." -> the volunteer found them on patrol. Use "skAmbassador" (the volunteer is an ambassador on patrol) NOT "self".
+  - "generalPublic" -> a passerby/bystander pointed them out to the volunteer.
+  - "police"/"venueSecurity"/"transportStaff" -> those services flagged the person to the volunteer.
+  - Default for ambiguous "I helped someone..." cases: "skAmbassador". DO NOT default to "self".
 - For "otherServicesInvolved", determine which emergency/security services were also present or called. Valid options: {other_services_keys}.
 - The "incidentDescription" should capture what happened. The "incidentOutcome" should capture how it was resolved.
 - For "site", map to one of: {site_keys}.
