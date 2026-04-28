@@ -173,7 +173,7 @@ class TestCompleteUIFlow:
     def test_dashboard_loads_with_stats(self, page: Page):
         """Dashboard view shows the 11 stat cards."""
         _real_login(page, DEMO_VOLUNTEER)
-        page.click('.bars.icon, [class*="sidebar icon"]', timeout=5000)
+        page.locator('i.sidebar.icon').first.click(timeout=5000)
         page.click('text=Dashboard', timeout=5000)
         page.wait_for_selector('text=People Assisted', timeout=10000)
         _shot(page, "06_dashboard")
@@ -182,40 +182,13 @@ class TestCompleteUIFlow:
         for stat in ("People Assisted", "Volunteer Hours", "Welfare Checks"):
             expect(page.locator(f"text={stat}")).to_be_visible()
 
-    def test_my_incidents_shows_submitted_incident_via_api(self, page: Page, fb_db, cleanup_keys):
+    def test_my_incidents_shows_submitted_incident_via_api(self, page: Page, fb_db):
         """
-        Submit an incident through the API for our test user, then navigate
-        through the UI to verify it appears in My Incidents and the edit
-        modal opens with all fields populated.
+        Submit an incident through the API as the demo volunteer, then
+        navigate through the UI to verify it appears in My Incidents.
         """
-        # The page object is already tied to the browser context; the api
-        # seeds need an ID token for the "real" volunteer demo user. We'll
-        # use a synthetic test UID to keep this test isolated from any real
-        # volunteer's data.
-        token = get_firebase_id_token_for_uid("e2e-ui-flow-user")
-        seed = _build_minimal_incident_via_api(token)
-        cleanup_keys.append(("incidentForms", seed["incident_id"]))
-
-        # Log in as a real demo user (so the UI thinks we're "Demo")
-        _real_login(page, DEMO_VOLUNTEER)
-        _shot(page, "07_logged_in_homepage")
-
-        # The submitted incident is owned by `e2e-ui-flow-user` not by the
-        # logged-in user, so we instead seed under the demo volunteer's UID
-        # by re-issuing using their real Firebase UID. To keep the test
-        # self-contained we re-seed under the demo user.
-        # First, get the demo volunteer's UID from the API.
-        # (The /api/me endpoint requires auth - we'll reach it through
-        #  page.evaluate so the cookie/token from the live browser is used.)
-
-        me = page.evaluate(
-            """async () => {
-                const { auth } = await import('/static/js/main.*.js').catch(() => ({}));
-                return null;
-            }"""
-        )
-        # Fallback: log in via Firebase Identity Toolkit using REST to get a
-        # token bound to the demo volunteer's email/password.
+        # Sign in via the public Identity Toolkit so the seed incident is
+        # owned by the same user we'll log in as in the browser.
         web_api_key = os.environ.get(
             "FIREBASE_WEB_API_KEY", "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ",
         )
@@ -230,22 +203,25 @@ class TestCompleteUIFlow:
         )
         sign_in.raise_for_status()
         demo_token = sign_in.json()["idToken"]
-        demo_uid = sign_in.json()["localId"]
 
-        # Re-seed an incident owned by this user so My Incidents lists it.
-        demo_seed = _build_minimal_incident_via_api(demo_token)
-        cleanup_keys.append(("incidentForms", demo_seed["incident_id"]))
+        seed = _build_minimal_incident_via_api(demo_token)
 
-        # Navigate to My Incidents
-        page.click('.bars.icon, [class*="sidebar icon"]', timeout=5000)
-        page.click('text=My Incidents', timeout=5000)
-        page.wait_for_selector('text=My Incidents', timeout=5000)
-        _shot(page, "08_my_incidents_list")
+        try:
+            _real_login(page, DEMO_VOLUNTEER)
+            _shot(page, "07_logged_in_homepage")
 
-        # The incident should be visible (description text is searchable)
-        expect(page.locator('text=UI flow test - drunk 19yo male')).to_be_visible(timeout=10000)
+            # Navigate to My Incidents
+            page.locator('i.sidebar.icon').first.click(timeout=5000)
+            page.click('text=My Incidents', timeout=5000)
+            page.wait_for_selector('text=My Incidents', timeout=5000)
+            _shot(page, "08_my_incidents_list")
 
-    def test_audio_player_renders_in_incident_modal(self, page: Page, fb_db, cleanup_keys):
+            # The incident should be visible (description text is searchable)
+            expect(page.locator('text=UI flow test - drunk 19yo male')).to_be_visible(timeout=10000)
+        finally:
+            _delete_incident_via_api(demo_token, seed["incident_id"])
+
+    def test_audio_player_renders_in_incident_modal(self, page: Page, fb_db):
         """
         Submit an incident WITH a transcript + synthetic audio blob via API,
         log in, open My Incidents, click the incident, and verify the
@@ -271,51 +247,52 @@ class TestCompleteUIFlow:
         seed = _build_minimal_incident_via_api(demo_token, with_audio=True)
         if "transcript_id" not in seed:
             pytest.skip("Audio storage disabled on backend - cannot exercise audio modal")
-        cleanup_keys.append(("incidentForms", seed["incident_id"]))
-        cleanup_keys.append(("transcripts", seed["transcript_id"]))
 
-        _real_login(page, DEMO_VOLUNTEER)
+        try:
+            _real_login(page, DEMO_VOLUNTEER)
 
-        # Open the sidebar -> My Incidents
-        page.click('.bars.icon, [class*="sidebar icon"]', timeout=5000)
-        page.click('text=My Incidents', timeout=5000)
-        page.wait_for_selector('text=UI flow test - drunk 19yo male', timeout=10000)
-        _shot(page, "09_my_incidents_with_audio_record")
+            # Open the sidebar -> My Incidents
+            page.locator('i.sidebar.icon').first.click(timeout=5000)
+            page.click('text=My Incidents', timeout=5000)
+            page.wait_for_selector('text=UI flow test - drunk 19yo male', timeout=10000)
+            _shot(page, "09_my_incidents_with_audio_record")
 
-        # Open the edit modal for our incident. The list row has an Edit
-        # button; click whichever one corresponds to our incident.
-        # We target by text content so the click lands on the right row.
-        row = page.locator('div:has-text("UI flow test - drunk 19yo male")').first
-        edit_btn = row.locator('button:has-text("Edit")').first
-        edit_btn.click()
+            # Open the edit modal for our incident. Each row in the FormList
+            # table has an icon-only Edit button (title='Edit'). Find the row
+            # containing our description and click its Edit button.
+            row = page.locator('tr:has-text("UI flow test - drunk 19yo male")').first
+            row.locator('button[title="Edit"]').first.click(timeout=5000)
 
-        # Modal should open with the transcript panel at the top
-        page.wait_for_selector('text=Voice Transcripts', timeout=10000)
-        _shot(page, "10_incident_modal_open_with_transcripts")
+            # Modal should open with the transcript panel at the top
+            page.wait_for_selector('text=Voice Transcripts', timeout=10000)
+            _shot(page, "10_incident_modal_open_with_transcripts")
 
-        # The transcript panel should contain an <audio> element with a
-        # src that includes X-Goog-Signature (signed URL contract).
-        audio_el = page.locator('audio')
-        expect(audio_el).to_be_visible(timeout=5000)
-        audio_src = audio_el.first.get_attribute('src')
-        assert audio_src and "X-Goog-Signature" in audio_src, (
-            f"audio src is not a signed URL: {audio_src!r}"
-        )
+            # The transcript panel should contain an <audio> element with a
+            # src that includes X-Goog-Signature (signed URL contract).
+            audio_el = page.locator('audio')
+            expect(audio_el).to_be_visible(timeout=5000)
+            audio_src = audio_el.first.get_attribute('src')
+            assert audio_src and "X-Goog-Signature" in audio_src, (
+                f"audio src is not a signed URL: {audio_src!r}"
+            )
 
-        # The transcript text we seeded should be visible too.
-        expect(page.locator('text=we caught a taxi to his hotel')).to_be_visible(timeout=5000)
-        _shot(page, "11_incident_modal_audio_player_visible")
+            # The transcript text we seeded should be visible too.
+            expect(page.locator('text=we caught a taxi to his hotel')).to_be_visible(timeout=5000)
+            _shot(page, "11_incident_modal_audio_player_visible")
 
-        # Confirm the signed URL actually serves bytes (small HEAD-style probe)
-        probe = requests.get(audio_src, timeout=20)
-        assert probe.status_code == 200, f"signed URL did not serve content: {probe.status_code}"
-        assert len(probe.content) > 0
-        _shot(page, "12_incident_modal_full")
+            # Confirm the signed URL actually serves bytes (small HEAD-style probe)
+            probe = requests.get(audio_src, timeout=20)
+            assert probe.status_code == 200, f"signed URL did not serve content: {probe.status_code}"
+            assert len(probe.content) > 0
+            _shot(page, "12_incident_modal_full")
+        finally:
+            # API delete cascades through clients + transcripts + Storage blobs
+            _delete_incident_via_api(demo_token, seed["incident_id"])
 
     def test_logout_returns_to_login(self, page: Page):
         """Sanity: clicking logout brings the user back to the login screen."""
         _real_login(page, DEMO_VOLUNTEER)
-        page.click('.bars.icon, [class*="sidebar icon"]', timeout=5000)
-        page.click('text=Logout', timeout=5000)
+        page.locator('i.sidebar.icon').first.click(timeout=5000)
+        page.locator('text=Log out').first.click(timeout=5000)
         page.wait_for_selector('input[placeholder="Email Address"]', timeout=10000)
         _shot(page, "13_after_logout_login_screen")
