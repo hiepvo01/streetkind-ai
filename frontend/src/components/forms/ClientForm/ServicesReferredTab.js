@@ -23,9 +23,9 @@ const ServicesReferredTab = ({ data, onChange, fieldOptions }) => {
         <CheckboxGroup
           label="Client Service Referrals"
           options={fieldOptions.service_referrals || []}
-          values={data.serviceReferrals || {}}
+          values={data.clientServiceReferrals || {}}
           onChange={(key, checked) =>
-            handleCheckboxChange('serviceReferrals', key, checked)
+            handleCheckboxChange('clientServiceReferrals', key, checked)
           }
         />
 

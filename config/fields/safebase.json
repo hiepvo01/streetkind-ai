@@ -1,6 +1,12 @@
 {
-    "_comment": "Field options specific to the SafeBase form",
+    "_comment": "Field options specific to the SafeBase form. age_group here overrides the shared one because the SafeBase schema (GenderAgeCount) uses 'from'-prefixed keys while the Client schema uses unprefixed keys. DO NOT remove this override - it keeps SafeBase headcount extraction writing to the right Pydantic fields.",
 
+    "age_group": [
+        { "key": "lessThan18", "label": "Under 18" },
+        { "key": "from18to25", "label": "18 to 25" },
+        { "key": "from26to39", "label": "26 to 39" },
+        { "key": "over40", "label": "Over 40" }
+    ],
     "assistance_rendered": [
         { "key": "directions", "label": "Requested Directions", "icon": "map outline" },
         { "key": "bus", "label": "Bus Information", "icon": "bus" },

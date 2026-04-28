@@ -40,9 +40,9 @@ const HealthSupportTab = ({ data, onChange, fieldOptions }) => {
         <CheckboxGroup
           label="Emergency Services"
           options={fieldOptions.emergency_services || []}
-          values={data.emergencyServices || {}}
+          values={data.emergencyServicesCalled || {}}
           onChange={(key, checked) =>
-            handleCheckboxChange('emergencyServices', key, checked)
+            handleCheckboxChange('emergencyServicesCalled', key, checked)
           }
         />
       </Form>

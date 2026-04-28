@@ -46,21 +46,12 @@ const RiskMinimizationTab = ({ data, onChange, fieldOptions }) => {
     onChange({ ...data, [field]: value });
   };
 
-  const handleNestedRadioChange = (section, field, value) => {
-    onChange({
-      ...data,
-      [section]: { ...data[section], [field]: value },
-    });
-  };
-
   const handleCheckboxChange = (section, key, checked) => {
     onChange({
       ...data,
       [section]: { ...data[section], [key]: checked },
     });
   };
-
-  const theftRisk = data.theftRisk || {};
 
   return (
     <>
@@ -91,30 +82,24 @@ const RiskMinimizationTab = ({ data, onChange, fieldOptions }) => {
               <RadioGroup
                 label="Client Consciousness"
                 options={CLIENT_CONSCIOUSNESS_OPTIONS}
-                value={theftRisk.clientConsciousness}
-                onChange={(val) =>
-                  handleNestedRadioChange('theftRisk', 'clientConsciousness', val)
-                }
+                value={data.clientConsciousness}
+                onChange={(val) => handleRadioChange('clientConsciousness', val)}
               />
             </Grid.Column>
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <RadioGroup
                 label="Valuables Visibility"
                 options={VALUABLES_VISIBILITY_OPTIONS}
-                value={theftRisk.valuablesVisibility}
-                onChange={(val) =>
-                  handleNestedRadioChange('theftRisk', 'valuablesVisibility', val)
-                }
+                value={data.clientValuablesVisibility}
+                onChange={(val) => handleRadioChange('clientValuablesVisibility', val)}
               />
             </Grid.Column>
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <RadioGroup
                 label="Lost Property"
                 options={LOST_PROPERTY_OPTIONS}
-                value={theftRisk.lostProperty}
-                onChange={(val) =>
-                  handleNestedRadioChange('theftRisk', 'lostProperty', val)
-                }
+                value={data.clientLostProperty}
+                onChange={(val) => handleRadioChange('clientLostProperty', val)}
               />
             </Grid.Column>
           </Grid.Row>
@@ -125,9 +110,9 @@ const RiskMinimizationTab = ({ data, onChange, fieldOptions }) => {
         <CheckboxGroup
           label="Injury Risk"
           options={INJURY_RISK_OPTIONS}
-          values={data.injuryRisk || {}}
+          values={data.injury || {}}
           onChange={(key, checked) =>
-            handleCheckboxChange('injuryRisk', key, checked)
+            handleCheckboxChange('injury', key, checked)
           }
         />
       </Form>

@@ -44,7 +44,7 @@ export const extractForm = async (transcript, formType, site) => {
 
 export const generateIncidentNarrative = async (formData) => {
     const headers = await getAuthHeaders();
-    const response = await fetch('/api/incident/narrative', {
+    const response = await fetch(apiUrl('/api/incident/narrative'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ form_data: formData }),
@@ -65,7 +65,7 @@ export const generateIncidentNarrative = async (formData) => {
 export const reverseGeocode = async (lat, lon) => {
     const headers = await getAuthHeaders();
     const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) }).toString();
-    const response = await fetch(`/api/geocode/reverse?${qs}`, { headers });
+    const response = await fetch(apiUrl(`/api/geocode/reverse?${qs}`), { headers });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
