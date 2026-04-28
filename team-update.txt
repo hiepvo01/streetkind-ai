@@ -1,10 +1,10 @@
-Team update — 29 Apr 2026
+Team update – 29 Apr 2026
 ============================
 
 Status of your two open MRs and what shipped after merge.
 
 
-!6 — feat(incident): improve incident form experience  [MERGED]
+!6 – feat(incident): improve incident form experience  [MERGED]
 ---------------------------------------------------------------
 
 Squashed commits dc07e7f -> 54e6c61.
@@ -32,7 +32,7 @@ Post-merge issues that needed fixing on top of your branch:
   cases. Fixed in commit ef39215.
 
 
-!7 — feat: add SafeBase start time and monitor tabs  [MERGED]
+!7 – feat: add SafeBase start time and monitor tabs  [MERGED]
 --------------------------------------------------------------
 
 Squashed commits 44e1dd8 -> 4dc5bb1.
@@ -62,14 +62,17 @@ Other things found in the deep audit (not from your MRs but worth knowing)
 A code review of the audio + transcript pipeline turned up four more
 silent field-binding bugs in the Client form, identical pattern to the
 age_group bug. The frontend tab read a typo'd or phantom field name
-while the schema used the right one. Affected production records:
+while the schema used the right one. Each bug below lists which schema
+field, what the frontend was reading instead, and how many production
+records it silently affected:
 
-  emergencyServicesCalled         ~454 records  (was data.emergencyServices)
-  clientServiceReferrals           ~94 records  (was data.serviceReferrals)
-  clientConsciousness/Visibility/LostProperty   ~688 records  (phantom data.theftRisk.*)
-  injury                          ~1203 records  (was data.injuryRisk)
+- emergencyServicesCalled was read as data.emergencyServices. ~454 records.
+- clientServiceReferrals was read as data.serviceReferrals. ~94 records.
+- clientConsciousness, clientValuablesVisibility and clientLostProperty
+  were read through a phantom data.theftRisk.* namespace. ~688 records.
+- injury was read as data.injuryRisk. ~1203 records.
 
-All fixed in commit 1624319 + bb24aea. The radio/checkbox values now
+All fixed in commit 1624319 plus bb24aea. The radio/checkbox values now
 render correctly when you open any of those clients.
 
 Plus a few smaller audit items shipped in the same round:
@@ -89,11 +92,14 @@ New guardrails so this class of bug can't ship again
 
 Two test files now run on every commit:
 
-  tests/test_field_binding_integrity.py      45 static checks (no servers)
-  tests/e2e/test_ui_form_binding.py          Playwright: opens the modal,
-                                             asserts every input's actual
-                                             rendered state matches stored
-                                             data
+- tests/test_field_binding_integrity.py runs 45 static checks (no servers
+  needed) that compare every Pydantic schema field name, JSON config key,
+  frontend tab data.<x> reference, and handleCheckboxChange('<x>') write
+  to make sure they all agree.
+- tests/e2e/test_ui_form_binding.py is a Playwright test that seeds an
+  incident with every radio and checkbox set to a known value, opens the
+  IncidentEditModal, navigates each tab, and asserts the actual <input>
+  states in the DOM match what was stored.
 
 If a future MR introduces another typo'd field name or schema/config
 drift, these fail at commit time -- not in production.
@@ -102,13 +108,13 @@ drift, these fail at commit time -- not in production.
 Verification
 ------------
 
-  Static integrity:                 45/45 pass
-  E2E API + UI + transcripts + form-binding:  75/75 pass against prod
-  AI extraction (Foundry-gated):     6/6 pass with RUN_AI_TESTS=1
+Static integrity passes 45 of 45 checks. The full E2E suite (API,
+UI flow, transcripts, audio, form-binding) passes 75 of 75 against
+prod. The Foundry-gated AI extraction tests pass 6 of 6 when run with
+RUN_AI_TESTS=1.
 
-Frontend redeployed to Firebase Hosting.
-Backend redeployed to Coolify.
-Both git remotes at 2e3aefc.
+Frontend redeployed to Firebase Hosting. Backend redeployed to Coolify.
+Both git remotes are at 2e3aefc.
 
 
 No open MRs right now
