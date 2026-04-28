@@ -1,120 +1,119 @@
 Team update — 29 Apr 2026
 ============================
 
-Critical bug round: a deep audit found six classes of silent
-data-binding bugs that affected production records. All fixed and
-verified live.
-
-Live URLs (unchanged):
-  Frontend:   https://streetkind-app-dev.web.app
-  Backend:    https://46-62-215-38.sslip.io
-  Latest:     bb24aea on origin/main + github/main
+Status of your two open MRs and what shipped after merge.
 
 
-What was wrong
---------------
+!6 — feat(incident): improve incident form experience  [MERGED]
+---------------------------------------------------------------
 
-These were all the same class of bug: the frontend tab read a typo'd or
-phantom field name while the schema (and therefore the AI extraction +
-the database) used the right name. The radios/checkboxes rendered
-unselected even though the data was correct underneath. Production
-record counts in parentheses were each invisible to users.
+Squashed commits dc07e7f -> 54e6c61.
 
-Client form bindings:
-  - emergencyServicesCalled       read as data.emergencyServices       (~454 records)
-  - clientServiceReferrals        read as data.serviceReferrals        (~94 records)
-  - clientConsciousness/Visibility/LostProperty  read through phantom data.theftRisk.* (~688 records)
-  - injury                        read as data.injuryRisk              (~1203 records)
-  - ageGroup keys                 config used "from18to25", schema/AI use "18to25"  (4607 records)
+What you shipped:
+  - quickNote field on incident forms
+  - Magic-generate narrative button (POST /api/incident/narrative)
+  - Per-user rate limit on narrative generation
+  - Geolocation pre-fill of address from device
+  - Reverse-geocode proxy at /api/geocode/reverse (cached + rate limited)
+  - Incident form shows the createdDate timestamp
 
-SafeBase regression introduced by the age_group fix:
-  - GenderAgeCount uses "from18to25"/"from26to39" but the prompt was
-    listing the unprefixed client keys after the age_group fix. AI was
-    producing keys Pydantic silently dropped.
-    Fix: safebase.json overrides shared.json with from-prefix keys.
+Post-merge issues that needed fixing on top of your branch:
 
-Frontend wiring:
-  - generateIncidentNarrative + reverseGeocode bypassed apiUrl(),
-    so they 404'd in cross-origin prod (Magic-generate + Use my location
-    were broken).
+  Magic generate + Use my location 404'd in production. The two API
+  helpers in api.js (generateIncidentNarrative + reverseGeocode) were
+  calling raw '/api/...' paths and bypassed the apiUrl() helper. In
+  cross-origin prod (frontend on Firebase Hosting, backend on Coolify),
+  fetch hit the React origin instead of the API. Fixed in commit 1624319;
+  both remotes redeployed; verified working.
 
-User-facing silent failure modes:
-  - Mic permission denied was a silent catch -- volunteer got no audio
-    saved with no feedback. Likely cause of the "have no voice record"
-    report. Fixed: yellow "Audio recording disabled" warning surfaces.
-  - <audio> rendered empty when signed URL minting failed. Fixed:
-    explicit warning Message when audioPath exists but URL doesn't.
-  - fetchIncidentTranscripts failure showed "no transcripts were
-    recorded" -- a flat lie. Fixed: separate transcriptsError state.
-
-Backend correctness:
-  - 67 legacy clients had a `safeBase` blob (lower-case b) the UI
-    ignored. Fixed: _normalise_legacy_client folds into safeSpace on
-    read.
-  - 4597 client records carry a startTime that Pydantic was silently
-    dropping on PUT (field wasn't in schema). Fixed: declared as
-    Optional[int] = None.
-  - Two client schemas had hidden type-coercion brittleness in the
-    radio comparator. Fixed: String() coerce in RadioGroup.
+  encounteredBy.self was being set to true for "I'm helping..." narration
+  even after your prompt update. Tightened the prompt to direct the model
+  to skAmbassador for ambiguous "I helped" / "I noticed" / "we found"
+  cases. Fixed in commit ef39215.
 
 
-How this slipped past the previous tests
------------------------------------------
+!7 — feat: add SafeBase start time and monitor tabs  [MERGED]
+--------------------------------------------------------------
 
-The earlier suite verified API contracts (round-trip JSON via API)
-and UI element existence (button visible, modal opens). It NEVER
-asserted that the values inside form inputs matched the stored data.
-Every binding bug above looked fine to the old tests because the
-correct JSON was sitting in the debug accordion at the bottom of the
-form -- the bug was that nothing else read it.
+Squashed commits 44e1dd8 -> 4dc5bb1.
+
+What you shipped:
+  - SafeBase startTime persisted through validation + display
+  - Incident / SafeBase tabs in monitor lists
+  - Start-time column on the SafeBase list
+  - GET /api/forms/safebase/{id} (hierarchy-scoped, same auth pattern as
+    incident endpoints)
+
+Post-merge issues that needed fixing on top of your branch:
+
+  None directly attributable to !7.
+
+  Indirect: my age_group config-drift fix (commit ef39215) removed the
+  "from"-prefix from shared.json's age_group keys to match the client
+  schema. That broke SafeBase because GenderAgeCount uses the
+  from-prefixed keys. Fixed by adding an age_group override in
+  safebase.json so SafeBase keeps the "from" prefix while client/incident
+  use the unprefixed shared keys (commit 1624319).
 
 
-New guardrails
---------------
+Other things found in the deep audit (not from your MRs but worth knowing)
+---------------------------------------------------------------------------
 
-Two test files added that fail at commit time on this class of bug:
+A code review of the audio + transcript pipeline turned up four more
+silent field-binding bugs in the Client form, identical pattern to the
+age_group bug. The frontend tab read a typo'd or phantom field name
+while the schema used the right one. Affected production records:
 
-1. tests/test_field_binding_integrity.py  (45 static checks, no servers)
-   - For every nested-boolean section: schema name === JSON config key
-     === data.<x> read === handleCheckboxChange('<x>') write
-   - For every flat-int radio: schema name === data.<x>
-   - Schema sub-fields exactly match JSON option keys (no extras, no
-     missing)
-   - SafeBase prompt's listed age groups equal GenderAgeCount fields
-   - Incident prompt's stated ageGroup keys equal client schema contract
-   - No fetch() in frontend/src bypasses apiUrl()
-   - createBlankClient declares exactly the schema's top-level fields
+  emergencyServicesCalled         ~454 records  (was data.emergencyServices)
+  clientServiceReferrals           ~94 records  (was data.serviceReferrals)
+  clientConsciousness/Visibility/LostProperty   ~688 records  (phantom data.theftRisk.*)
+  injury                          ~1203 records  (was data.injuryRisk)
 
-2. tests/e2e/test_ui_form_binding.py  (Playwright)
-   - Seeds an incident with EVERY radio + checkbox set to a known
-     value, opens the IncidentEditModal, navigates each tab, asserts
-     the actual <input> states match what was stored.
-   - This is the test that would have caught every binding bug above.
+All fixed in commit 1624319 + bb24aea. The radio/checkbox values now
+render correctly when you open any of those clients.
+
+Plus a few smaller audit items shipped in the same round:
+  - Yellow "Audio recording disabled" warning when the mic is denied
+    (likely cause of your "have no voice record" report).
+  - <audio> shows a fallback message when the signed URL is unavailable.
+  - Transcripts fetch error is now visible instead of showing a fake
+    "no transcripts" state.
+  - 67 legacy clients with `safeBase` blob (lower-case b) now display
+    correctly via a read-side normaliser.
+  - 4597 client records had a `startTime` Pydantic was silently
+    dropping on PUT. Schema field added.
+
+
+New guardrails so this class of bug can't ship again
+-----------------------------------------------------
+
+Two test files now run on every commit:
+
+  tests/test_field_binding_integrity.py      45 static checks (no servers)
+  tests/e2e/test_ui_form_binding.py          Playwright: opens the modal,
+                                             asserts every input's actual
+                                             rendered state matches stored
+                                             data
+
+If a future MR introduces another typo'd field name or schema/config
+drift, these fail at commit time -- not in production.
 
 
 Verification
 ------------
 
   Static integrity:                 45/45 pass
-  E2E API + UI + transcripts:       75/75 pass against prod
-  AI extraction (Foundry-gated):     6/6 pass (RUN_AI_TESTS=1)
-  Test data leaked:                  0 records, 0 audio blobs
+  E2E API + UI + transcripts + form-binding:  75/75 pass against prod
+  AI extraction (Foundry-gated):     6/6 pass with RUN_AI_TESTS=1
 
-Run yourself:
-
-  API_BASE_URL=https://46-62-215-38.sslip.io \
-  FIREBASE_SERVICE_ACCOUNT_PATH=<path-to-service-account.json> \
-  FIREBASE_STORAGE_BUCKET=streetkind-app-dev.firebasestorage.app \
-  python -m pytest tests/test_field_binding_integrity.py tests/e2e/ \
-    -v --browser chromium
+Frontend redeployed to Firebase Hosting.
+Backend redeployed to Coolify.
+Both git remotes at 2e3aefc.
 
 
-Action needed from you
-----------------------
+No open MRs right now
+---------------------
 
-None right now -- backend was redeployed (Coolify), frontend was
-redeployed (Firebase Hosting), all fixes are live and verified.
-
-If you spot a volunteer report ANY field appearing unselected when
-they expect it filled, ping me with the incident_id and tab so I can
-add it to the form-binding test before fixing.
+Nothing pending on your side. If a volunteer reports a field appearing
+unselected when they expect it filled, ping me with the incident_id and
+which tab/section -- I'll add it to the form-binding test before fixing.
