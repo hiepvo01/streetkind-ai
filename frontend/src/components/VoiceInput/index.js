@@ -300,6 +300,21 @@ const VoiceInput = ({
                                             src={previewUrl}
                                             style={{ width: '100%' }}
                                         />
+                                        <Button
+                                            basic
+                                            color='red'
+                                            size='small'
+                                            icon='trash alternate outline'
+                                            content='Discard recording'
+                                            style={{ marginTop: '0.4rem' }}
+                                            onClick={() => {
+                                                setPreviewUrl((prev) => {
+                                                    if (prev) URL.revokeObjectURL(prev);
+                                                    return null;
+                                                });
+                                                if (onRecordingCaptured) onRecordingCaptured(null);
+                                            }}
+                                        />
                                     </div>
                                 )}
                                 <Button

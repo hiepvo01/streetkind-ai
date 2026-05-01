@@ -404,7 +404,7 @@ async def upload_transcript_audio(
     if not _RTDB_PUSH_ID_RE.match(transcript_id):
         raise HTTPException(status_code=400, detail="Invalid transcript_id")
 
-    if not os.getenv("FIREBASE_STORAGE_BUCKET"):
+    if not os.getenv("FIREBASE_STORAGE_BUCKET") and not os.getenv("AUDIO_LOCAL_DIR"):
         raise HTTPException(
             status_code=503,
             detail="Audio storage is not configured on this deployment",

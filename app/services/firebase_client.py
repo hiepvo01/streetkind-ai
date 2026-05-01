@@ -500,12 +500,27 @@ def _audio_ext_for(content_type: str) -> str:
     return "bin"
 
 
+def _local_audio_root() -> str | None:
+    """Return the local filesystem dir for audio storage, or None if disabled.
+    When AUDIO_LOCAL_DIR is set we keep blobs on local disk instead of going
+    to Firebase Storage. Useful for offline / dev work where the team doesn't
+    want test recordings polluting the shared bucket.
+    """
+    return os.getenv("AUDIO_LOCAL_DIR")
+
+
 def upload_audio(incident_id: str, transcript_id: str, audio_bytes: bytes, content_type: str) -> str:
     """
-    Upload an audio blob to Storage at audio/{incidentId}/{transcriptId}.{ext}
-    and return the bucket-relative blob path. Blobs stay PRIVATE - playback
-    goes via short-lived signed URLs generated at read time by
-    signed_audio_url().
+    Upload an audio blob and return its location key. The key has the shape
+    `audio/{incidentId}/{transcriptId}.{ext}` regardless of the storage backend
+    so the rest of the pipeline (signed_audio_url, delete cascade) is uniform.
+
+    Backend selection:
+    - If AUDIO_LOCAL_DIR is set, write to {AUDIO_LOCAL_DIR}/audio/{i}/{t}.ext
+      on local disk. No Firebase Storage call.
+    - Otherwise, upload to Firebase Storage at the same relative path,
+      private (no make_public). Playback goes via short-lived signed URLs
+      generated at read time by signed_audio_url().
 
     IDs are re-validated against the push-ID regex even though the route layer
     already checks them - defense in depth so future callers can't accidentally
@@ -513,11 +528,21 @@ def upload_audio(incident_id: str, transcript_id: str, audio_bytes: bytes, conte
     """
     _assert_push_id(incident_id, "incident_id")
     _assert_push_id(transcript_id, "transcript_id")
-    _init_firebase()
 
-    bucket = storage.bucket()
     ext = _audio_ext_for(content_type)
     blob_path = f"audio/{incident_id}/{transcript_id}.{ext}"
+
+    local_root = _local_audio_root()
+    if local_root:
+        from pathlib import Path
+        target = Path(local_root) / blob_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(audio_bytes)
+        logger.info("Wrote local audio %s (%d bytes)", target, len(audio_bytes))
+        return blob_path
+
+    _init_firebase()
+    bucket = storage.bucket()
     blob = bucket.blob(blob_path)
     blob.upload_from_string(audio_bytes, content_type=content_type)
     # No make_public() - audio is private, served via signed URLs on read.
@@ -529,10 +554,15 @@ AUDIO_SIGNED_URL_TTL_SECONDS = int(os.getenv("AUDIO_SIGNED_URL_TTL_SECONDS", "36
 
 def signed_audio_url(blob_path: str, ttl_seconds: int | None = None) -> str | None:
     """
-    Return a short-lived GCS v4 signed URL for a stored audio blob, or None
-    if the blob is missing / Storage is unreachable. Callers must already have
-    authorised access to the containing incident - this function enforces
-    NOTHING; it only signs.
+    Return a URL the frontend can use to play back a stored audio blob.
+
+    - In Firebase Storage mode: a short-lived v4 signed URL.
+    - In local-disk mode (AUDIO_LOCAL_DIR set): a same-origin path served by
+      the FastAPI app's static-files mount at /local-audio/...
+
+    Returns None if the blob is missing / Storage is unreachable.
+    Callers must already have authorised access to the containing incident -
+    this function enforces NOTHING; it only signs / formats URLs.
     """
     if not blob_path or not isinstance(blob_path, str):
         return None
@@ -540,6 +570,15 @@ def signed_audio_url(blob_path: str, ttl_seconds: int | None = None) -> str | No
     # contain only characters we'd expect (no ../, no absolute paths).
     if not blob_path.startswith("audio/") or ".." in blob_path:
         logger.warning("Refusing to sign suspicious blob_path: %r", blob_path)
+        return None
+
+    local_root = _local_audio_root()
+    if local_root:
+        from pathlib import Path
+        if (Path(local_root) / blob_path).is_file():
+            # Browser will hit FastAPI's StaticFiles mount; same-origin in
+            # local dev so no auth header / CORS issues.
+            return f"/local-audio/{blob_path}"
         return None
 
     try:
@@ -560,21 +599,31 @@ def signed_audio_url(blob_path: str, ttl_seconds: int | None = None) -> str | No
 
 def delete_audio_blob(incident_id: str, transcript_id: str) -> bool:
     """
-    Best-effort deletion of the audio blob(s) for a single transcript.
-    Returns True when a blob was deleted (or none existed), False on error.
+    Best-effort deletion of the audio blob(s) for a single transcript across
+    whichever backend is active.
+    Returns True when the operation succeeded (or no blob existed), False on error.
     Used for compensation when an audio upload partially fails.
     """
     try:
         _assert_push_id(incident_id, "incident_id")
         _assert_push_id(transcript_id, "transcript_id")
+
+        local_root = _local_audio_root()
+        if local_root:
+            from pathlib import Path
+            target_dir = Path(local_root) / "audio" / incident_id
+            if target_dir.is_dir():
+                for f in target_dir.iterdir():
+                    if f.is_file() and f.stem == transcript_id:
+                        f.unlink()
+            return True
+
         bucket = storage.bucket()
-        count = 0
         # The extension is content-type dependent, so delete anything matching
         # the transcript-id prefix under this incident.
         for blob in bucket.list_blobs(prefix=f"audio/{incident_id}/"):
             if blob.name.startswith(f"audio/{incident_id}/{transcript_id}."):
                 blob.delete()
-                count += 1
         return True
     except Exception as e:
         logger.warning(
@@ -609,27 +658,41 @@ def delete_transcripts_for_incident(incident_id: str) -> dict:
     transcript_ids = [t for t in (incident.get("transcriptIds") or []) if isinstance(t, str)]
 
     # 1. Storage cleanup first, while RTDB still has the pointers for recovery.
-    try:
-        bucket = storage.bucket()
-        # List once, track what we tried to delete.
-        blobs = list(bucket.list_blobs(prefix=f"audio/{incident_id}/"))
-        for blob in blobs:
-            try:
-                blob.delete()
-                summary["storage_blobs_deleted"] += 1
-            except Exception as e:
-                summary["storage_blobs_failed"] += 1
-                logger.warning(
-                    "Failed to delete storage blob %s for incident=%s: %s",
-                    blob.name, incident_id, e,
-                )
-    except Exception as e:
-        # No storageBucket configured, or the enumeration itself failed.
-        # Record it so callers / audits can see the gap. Don't abort RTDB cleanup.
-        summary["storage_list_error"] = str(e)
-        logger.info(
-            "Storage cleanup skipped for incident=%s: %s", incident_id, e,
-        )
+    local_root = _local_audio_root()
+    if local_root:
+        try:
+            from pathlib import Path
+            import shutil
+            target_dir = Path(local_root) / "audio" / incident_id
+            if target_dir.is_dir():
+                file_count = sum(1 for f in target_dir.iterdir() if f.is_file())
+                shutil.rmtree(target_dir)
+                summary["storage_blobs_deleted"] = file_count
+        except Exception as e:
+            summary["storage_list_error"] = f"local: {e}"
+            logger.warning("Local audio cleanup failed for incident=%s: %s", incident_id, e)
+    else:
+        try:
+            bucket = storage.bucket()
+            # List once, track what we tried to delete.
+            blobs = list(bucket.list_blobs(prefix=f"audio/{incident_id}/"))
+            for blob in blobs:
+                try:
+                    blob.delete()
+                    summary["storage_blobs_deleted"] += 1
+                except Exception as e:
+                    summary["storage_blobs_failed"] += 1
+                    logger.warning(
+                        "Failed to delete storage blob %s for incident=%s: %s",
+                        blob.name, incident_id, e,
+                    )
+        except Exception as e:
+            # No storageBucket configured, or the enumeration itself failed.
+            # Record it so callers / audits can see the gap. Don't abort RTDB cleanup.
+            summary["storage_list_error"] = str(e)
+            logger.info(
+                "Storage cleanup skipped for incident=%s: %s", incident_id, e,
+            )
 
     # 2. RTDB transcript records.
     for tid in transcript_ids:
