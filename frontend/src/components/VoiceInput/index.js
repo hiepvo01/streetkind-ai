@@ -13,9 +13,10 @@ import {
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
-import { extractForm } from '../../services/api';
+import { extractForm, transcribeAudio } from '../../services/api';
 
 const AUDIO_ENABLED = process.env.REACT_APP_ENABLE_AUDIO === '1';
+const WHISPER_ENABLED = process.env.REACT_APP_ENABLE_WHISPER !== '0';
 
 const PREFERRED_AUDIO_TYPES = [
     'audio/webm;codecs=opus',
@@ -162,20 +163,39 @@ const VoiceInput = ({
                 const durationMs = startedAt ? Date.now() - startedAt : 0;
                 audioChunksRef.current = [];
                 if (blob.size === 0) return;
-                // Each segment's text = the slice of the master transcript
-                // that this recording contributed (anything appended after
-                // segmentStartIdxRef.current).
+                const segmentBaseStart = segmentStartIdxRef.current;
                 const fullText = liveTextRef.current;
-                const segmentText = fullText.slice(segmentStartIdxRef.current).trim();
+                const webSpeechText = fullText.slice(segmentBaseStart).trim();
                 const segment = {
                     id: `seg-${++_segmentCounter}`,
                     blob,
-                    text: segmentText,
+                    text: webSpeechText,
                     durationMs,
                     startedAt,
                     previewUrl: URL.createObjectURL(blob),
+                    polishing: WHISPER_ENABLED,
                 };
                 setSegments((prev) => [...prev, segment]);
+
+                // Background quality pass: send the blob to Whisper and
+                // replace the segment text + the slice of the master
+                // transcript that came from this segment. Web Speech text
+                // is kept as a fallback if the call fails.
+                if (WHISPER_ENABLED) {
+                    transcribeAudio(blob).then((polishedText) => {
+                        if (!polishedText) {
+                            markSegmentDonePolishing(segment.id);
+                            return;
+                        }
+                        replaceSegmentText(segment.id, segmentBaseStart, webSpeechText, polishedText);
+                    }).catch((err) => {
+                        // 503 = OPENAI_API_KEY unset, just hide the indicator.
+                        // Anything else logs but keeps the Web Speech text.
+                        // eslint-disable-next-line no-console
+                        console.warn('Whisper transcription failed; keeping live text:', err.message);
+                        markSegmentDonePolishing(segment.id);
+                    });
+                }
             };
             recorder.start();
             mediaRecorderRef.current = recorder;
@@ -260,6 +280,39 @@ const VoiceInput = ({
         } else {
             startRecording();
         }
+    };
+
+    const markSegmentDonePolishing = (segmentId) => {
+        setSegments((prev) => prev.map((s) =>
+            s.id === segmentId ? { ...s, polishing: false } : s,
+        ));
+    };
+
+    /**
+     * Whisper returned a higher-accuracy transcript for a segment. Update:
+     *   1. The segment record (so its `text` reflects the polished version)
+     *   2. The master `transcript` prop - splice out the slice that came
+     *      from this segment and replace it with the polished text. The
+     *      timestamp marker at the segment boundary stays intact.
+     */
+    const replaceSegmentText = (segmentId, baseStart, oldText, newText) => {
+        setSegments((prev) => prev.map((s) =>
+            s.id === segmentId ? { ...s, text: newText, polishing: false } : s,
+        ));
+
+        const current = transcriptRef.current || '';
+        // Find the segment's slice. We expect it to start at baseStart and
+        // run until the next segment boundary (next "\n\n[" marker) or EOF.
+        const tail = current.slice(baseStart);
+        const nextBoundary = tail.search(/\n\n\[\d/);
+        const sliceEnd = nextBoundary === -1 ? current.length : baseStart + nextBoundary;
+        const before = current.slice(0, baseStart);
+        const after = current.slice(sliceEnd);
+        // Preserve any extra whitespace/newlines after the polished text
+        // before the next segment boundary.
+        const updated = `${before}${newText.trim()}${after}`;
+        liveTextRef.current = updated;
+        onTranscriptChange(updated);
     };
 
     const discardSegment = (segmentId) => {
@@ -409,6 +462,12 @@ const VoiceInput = ({
                                             </Label>
                                             {s.durationMs > 0 && (
                                                 <Label size='tiny'>{formatDuration(s.durationMs)}</Label>
+                                            )}
+                                            {s.polishing && (
+                                                <Label size='tiny' color='yellow'>
+                                                    <Icon name='magic' />
+                                                    Polishing transcript with Whisper...
+                                                </Label>
                                             )}
                                         </Header>
                                         {s.previewUrl && (

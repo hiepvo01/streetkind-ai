@@ -74,13 +74,15 @@ npx firebase-tools login
 | `ANTHROPIC_FOUNDRY_BASE_URL` | Foundry endpoint, ends in `/anthropic/` | yes (or `ANTHROPIC_FOUNDRY_RESOURCE`) |
 | `FIREBASE_DATABASE_URL` | `https://streetkind-app-dev-default-rtdb.firebaseio.com` | yes |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | `/app/firebase-service-account.json` | yes |
-| `FIREBASE_STORAGE_BUCKET` | `streetkind-app-dev.firebasestorage.app` | yes for audio; 503 on audio upload if unset |
+| `FIREBASE_STORAGE_BUCKET` | `streetkind-app-dev.firebasestorage.app` | yes (audio uploads return 503 if unset) |
 | `CORS_ORIGINS` | `https://streetkind-app-dev.web.app,https://streetkind-app-dev.firebaseapp.com` | yes |
+| `OPENAI_API_KEY` | `sk-proj-...` from platform.openai.com | recommended (enables Whisper-quality re-transcription; falls back to Web Speech text if unset) |
+| `WHISPER_MODEL` | `whisper-1` (default) | optional override |
 | `AUDIO_SIGNED_URL_TTL_SECONDS` | `3600` (default) | optional - signed URL lifetime in seconds |
 | `MAX_AUDIO_BYTES` | `20971520` (default 20 MB) | optional |
 | `MAX_TRANSCRIPT_LENGTH` | `5000` (default chars) | optional |
 | `USERS_CACHE_TTL_SECONDS` | `30` (default) | optional; set `0` to disable hierarchy cache |
-| `AI_MODEL` | (reads `config/app.json` default) | optional override for the Foundry deployment name |
+| `AI_MODEL` | (reads `config/app.json` default - currently `claude-sonnet-4-6`) | optional override for the Foundry deployment name |
 
 **Persistent storage:** file mount at `/app/firebase-service-account.json` with the contents of the Firebase service-account JSON. Rotate this file in-place in Coolify whenever you rotate the key in Firebase Console.
 

@@ -210,6 +210,37 @@ export const createTranscript = async (formId, text, audioDurationMs, extraction
     return response.json();
 };
 
+/**
+ * Send a recorded audio blob to the backend's Whisper-backed transcription
+ * endpoint. Returns the higher-accuracy transcript text. Throws on failure
+ * (including 503 when OPENAI_API_KEY isn't configured) - callers should
+ * fall back to whatever Web Speech text they already have.
+ */
+export const transcribeAudio = async (audioBlob) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not authenticated');
+    const token = await user.getIdToken();
+
+    const formData = new FormData();
+    formData.append(
+        'audio', audioBlob,
+        `recording.${audioBlob.type.includes('mp4') ? 'm4a' : 'webm'}`,
+    );
+
+    const response = await fetch(apiUrl('/api/transcribe'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Transcription failed (${response.status})`);
+    }
+    const data = await response.json();
+    return data.text || '';
+};
+
+
 export const uploadTranscriptAudio = async (formId, transcriptId, audioBlob) => {
     const user = auth.currentUser;
     if (!user) throw new Error('Not authenticated');

@@ -5,6 +5,7 @@ python-multipart==0.0.12
 
 # AI / LLM
 anthropic==0.96.0
+openai==1.55.0
 
 # Structured output / validation
 pydantic==2.11.1

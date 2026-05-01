@@ -318,6 +318,44 @@ MAX_AUDIO_BYTES = int(os.getenv("MAX_AUDIO_BYTES", str(20 * 1024 * 1024)))  # 20
 _ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/webm;codecs=opus", "audio/mp4", "audio/mpeg", "audio/ogg"}
 
 
+@router.post("/api/transcribe")
+async def transcribe_route(
+    audio: UploadFile = File(...),
+    caller_uid: str = Depends(get_current_uid),
+):
+    """
+    Re-transcribe an audio blob with OpenAI Whisper for higher accuracy than
+    the browser's Web Speech API. The frontend calls this in the background
+    after a recording stops; if it fails or isn't configured, the existing
+    Web Speech text is kept.
+    """
+    from .services.whisper_transcribe import is_enabled, transcribe_audio
+
+    if not is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Whisper transcription is not configured (OPENAI_API_KEY unset)",
+        )
+
+    content_type = audio.content_type or ""
+    if content_type.split(";")[0].strip() not in {t.split(";")[0] for t in _ALLOWED_AUDIO_TYPES}:
+        raise HTTPException(status_code=400, detail=f"Unsupported audio type: {content_type}")
+
+    body = await audio.read()
+    if not body:
+        raise HTTPException(status_code=400, detail="Empty audio blob")
+    if len(body) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Audio too large ({len(body)} bytes). Max: {MAX_AUDIO_BYTES}",
+        )
+
+    text = transcribe_audio(body, content_type)
+    if text is None:
+        raise HTTPException(status_code=502, detail="Transcription failed")
+    return {"text": text}
+
+
 @router.get("/api/forms/incident/{form_id}/transcripts")
 def list_incident_transcripts(form_id: str, caller_uid: str = Depends(get_current_uid)):
     """Return every transcript linked to the incident, oldest first."""
