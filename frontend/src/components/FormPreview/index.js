@@ -133,7 +133,7 @@ const FormPreview = ({
                     });
                 }
             }
-            onSubmitted();
+            onSubmitted(status);
         } catch (e) {
             setError('Submit failed: ' + e.message);
         } finally {

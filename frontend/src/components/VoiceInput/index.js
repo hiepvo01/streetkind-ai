@@ -61,6 +61,7 @@ const VoiceInput = ({
     onExtracted,
     onRecordingsChange,
     submitted,
+    submittedStatus,
 }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [extracting, setExtracting] = useState(false);
@@ -350,13 +351,28 @@ const VoiceInput = ({
     };
 
     if (submitted) {
+        const isDraft = submittedStatus === 'draft';
         return (
             <Container style={{ paddingTop: '1rem' }}>
                 <Message success icon>
-                    <Icon name='check circle' />
+                    <Icon name={isDraft ? 'save outline' : 'check circle'} />
                     <Message.Content>
-                        <Message.Header>Form submitted successfully</Message.Header>
-                        The data has been saved as a draft. Open SKSSIR to review and finalize.
+                        <Message.Header>
+                            {isDraft ? 'Saved as draft' : 'Incident submitted'}
+                        </Message.Header>
+                        {isDraft ? (
+                            <>
+                                Your incident is saved as a draft and won't appear in
+                                statistics until you mark it complete. Open it from
+                                <strong> My Incidents</strong> to keep editing.
+                            </>
+                        ) : (
+                            <>
+                                Your incident has been submitted and will appear in
+                                statistics. You can still view or edit it from
+                                <strong> My Incidents</strong>.
+                            </>
+                        )}
                     </Message.Content>
                 </Message>
             </Container>
@@ -521,6 +537,7 @@ VoiceInput.propTypes = {
     onExtracted: PropTypes.func.isRequired,
     onRecordingsChange: PropTypes.func,
     submitted: PropTypes.bool.isRequired,
+    submittedStatus: PropTypes.oneOf(['completed', 'draft', null]),
 };
 
 export default VoiceInput;

@@ -24,6 +24,7 @@ const App = () => {
     const [transcript, setTranscript] = useState('');
     const [formData, setFormData] = useState(null);
     const [submitted, setSubmitted] = useState(false);
+    const [submittedStatus, setSubmittedStatus] = useState(null); // 'completed' | 'draft'
     const [recordings, setRecordings] = useState([]); // [{ blob, text, durationMs, startedAt }]
     const [extractionMeta, setExtractionMeta] = useState(null); // { latencyMs, model, ... }
 
@@ -53,6 +54,7 @@ const App = () => {
     const handleReset = () => {
         setTranscript('');
         setSubmitted(false);
+        setSubmittedStatus(null);
         setRecordings([]);
         setExtractionMeta(null);
         setFormData(
@@ -67,6 +69,7 @@ const App = () => {
         setFormType(type);
         setTranscript('');
         setSubmitted(false);
+        setSubmittedStatus(null);
         setRecordings([]);
         setExtractionMeta(null);
         setFormData(
@@ -177,13 +180,14 @@ const App = () => {
                                     onExtracted={handleExtracted}
                                     onRecordingsChange={setRecordings}
                                     submitted={submitted}
+                                    submittedStatus={submittedStatus}
                                 />
                                 {formData && !submitted && (
                                     <FormPreview
                                         formType={formType}
                                         data={formData}
                                         onDataChange={setFormData}
-                                        onSubmitted={() => setSubmitted(true)}
+                                        onSubmitted={(status) => { setSubmitted(true); setSubmittedStatus(status); }}
                                         onReset={handleReset}
                                         fieldOptions={config.field_options}
                                         sites={config.sites}

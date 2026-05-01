@@ -68,12 +68,26 @@ DESCRIPTION_MARKERS = (
     "delete me",
     "concurrent transcript",
     "Submit failed",  # leftover from an aborted assert
+    "Testing Voice Record",
+    "test voice",
 )
 LEADER_MARKERS = (
     "E2E", "CRUD", "Audio", "UI Flow", "Form-Binding", "probe",
 )
 CLIENT_FIRST_NAME_MARKERS = (
     "E2ETest", "JasonTest", "BindingTest",
+)
+# Transcripts that look obviously like development tests rather than real
+# volunteer reports. Matched against the lowercased text.
+TRANSCRIPT_TEXT_MARKERS = (
+    "test test",
+    "1 2 3",
+    "this is a test",
+    "this is testing",
+    "testing testing",
+    "audio test",
+    "mic test",
+    "hello test",
 )
 
 # RTDB nodes touched.
@@ -119,6 +133,26 @@ def _is_test_record(record: dict) -> bool:
     return False
 
 
+def _is_test_transcript(record: dict) -> bool:
+    """Transcripts have their own text; flag obvious dev-tests by content."""
+    if _is_test_record(record):
+        return True
+    if not isinstance(record, dict):
+        return False
+    text = str(record.get("text", "")).lower().strip()
+    if not text:
+        return False
+    if any(marker in text for marker in TRANSCRIPT_TEXT_MARKERS):
+        return True
+    # Aborted dev tests typically only contain a label fragment with no
+    # incident narrative. A real volunteer report describes a person and
+    # what happened (>50 chars). A transcript that's <50 chars and looks
+    # like a form-field label fragment is almost certainly a test.
+    if len(text) < 50 and text.startswith(("team leader", "first name", "site ", "location ")):
+        return True
+    return False
+
+
 def _delete(ref) -> None:
     if DRY_RUN:
         return
@@ -139,16 +173,17 @@ def cleanup_rtdb() -> dict:
         if _is_test_record(idata):
             test_incident_ids.add(iid)
 
-    # Pass 1: RTDB transcripts.
+    # Pass 1: RTDB transcripts. Match by createdBy / text markers OR by being
+    # tied to a deleted test incident.
     transcripts = db.reference("transcripts").get() or {}
     for tid, t in transcripts.items():
         if not isinstance(t, dict):
             continue
         if (
-            _is_test_record(t)
+            _is_test_transcript(t)
             or str(t.get("incidentId", "")) in test_incident_ids
         ):
-            print(f"  delete transcripts/{tid}")
+            print(f"  delete transcripts/{tid}  text={str(t.get('text', ''))[:50]!r}")
             _delete(db.reference(f"transcripts/{tid}"))
             summary["transcripts"] += 1
 
