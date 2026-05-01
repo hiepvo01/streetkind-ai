@@ -9,10 +9,8 @@ WORKDIR /app
 
 COPY requirements.txt ./
 
-# Install only the runtime deps. Whisper is a heavyweight dependency that
-# pulls in torch and ffmpeg; the production API uses Web Speech + Foundry
-# Claude, so we skip whisper + playwright/pytest to keep the image small.
-RUN sed -i '/openai-whisper/d;/playwright/d;/pytest/d;/^pytest/d' requirements.txt \
+# Strip test-only deps so the image stays small.
+RUN sed -i '/playwright/d;/^pytest/d' requirements.txt \
  && pip install -r requirements.txt
 
 COPY app ./app

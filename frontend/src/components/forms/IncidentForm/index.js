@@ -268,7 +268,6 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
                   data={client}
                   onChange={(updatedClient) => handleClientChange(i, updatedClient)}
                   fieldOptions={fieldOptions}
-                  clientIndex={i}
                 />
               </Segment>
             ))}

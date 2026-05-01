@@ -15,7 +15,7 @@ const TABS = [
   { key: 'servicesReferred', label: 'Services Referred', Component: ServicesReferredTab },
 ];
 
-const ClientForm = ({ data, onChange, fieldOptions, clientIndex }) => {
+const ClientForm = ({ data, onChange, fieldOptions }) => {
   const [activeTab, setActiveTab] = useState('clientInfo');
 
   const activeConfig = TABS.find((t) => t.key === activeTab);
@@ -50,7 +50,6 @@ ClientForm.propTypes = {
   data: PropTypes.object.isRequired,
   onChange: PropTypes.func.isRequired,
   fieldOptions: PropTypes.object.isRequired,
-  clientIndex: PropTypes.number.isRequired,
 };
 
 export default ClientForm;

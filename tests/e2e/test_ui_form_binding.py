@@ -11,7 +11,6 @@ These are PROD-targeted by default (use API_BASE_URL=http://localhost:8000
 to retarget local).
 """
 
-import os
 import requests
 from playwright.sync_api import Page, expect
 
@@ -19,15 +18,13 @@ from .conftest import (
     BASE_URL,
     DEMO_VOLUNTEER,
     API_BASE_URL,
+    FIREBASE_WEB_API_KEY,
 )
 
 
 def _demo_token() -> str:
-    web_api_key = os.environ.get(
-        "FIREBASE_WEB_API_KEY", "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ",
-    )
     sign_in = requests.post(
-        f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={web_api_key}",
+        f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}",
         json={
             "email": DEMO_VOLUNTEER["email"],
             "password": DEMO_VOLUNTEER["password"],

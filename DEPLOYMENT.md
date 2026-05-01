@@ -81,7 +81,6 @@ npx firebase-tools login
 | `MAX_TRANSCRIPT_LENGTH` | `5000` (default chars) | optional |
 | `USERS_CACHE_TTL_SECONDS` | `30` (default) | optional; set `0` to disable hierarchy cache |
 | `AI_MODEL` | (reads `config/app.json` default) | optional override for the Foundry deployment name |
-| `WHISPER_MODEL` | (unused in prod) | only used by the `app/services/transcription.py` fallback path, which is not exercised at runtime |
 
 **Persistent storage:** file mount at `/app/firebase-service-account.json` with the contents of the Firebase service-account JSON. Rotate this file in-place in Coolify whenever you rotate the key in Firebase Console.
 

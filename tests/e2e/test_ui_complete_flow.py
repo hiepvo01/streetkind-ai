@@ -16,7 +16,6 @@ Why this doesn't drive the real microphone:
   exercising the UI display path (the part that's actually fragile).
 """
 
-import os
 from pathlib import Path
 
 import pytest
@@ -29,6 +28,7 @@ from .conftest import (
     DEMO_VOLUNTEER,
     DEMO_ADMIN,
     API_BASE_URL,
+    FIREBASE_WEB_API_KEY,
     get_firebase_id_token_for_uid,
 )
 
@@ -189,11 +189,8 @@ class TestCompleteUIFlow:
         """
         # Sign in via the public Identity Toolkit so the seed incident is
         # owned by the same user we'll log in as in the browser.
-        web_api_key = os.environ.get(
-            "FIREBASE_WEB_API_KEY", "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ",
-        )
         sign_in = requests.post(
-            f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={web_api_key}",
+            f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}",
             json={
                 "email": DEMO_VOLUNTEER["email"],
                 "password": DEMO_VOLUNTEER["password"],
@@ -229,11 +226,8 @@ class TestCompleteUIFlow:
         signed URL.
         """
         # Sign in as demo volunteer to get their token + uid for seeding
-        web_api_key = os.environ.get(
-            "FIREBASE_WEB_API_KEY", "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ",
-        )
         sign_in = requests.post(
-            f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={web_api_key}",
+            f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}",
             json={
                 "email": DEMO_VOLUNTEER["email"],
                 "password": DEMO_VOLUNTEER["password"],

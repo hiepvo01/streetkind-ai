@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
 
 // Firebase web config. The apiKey here is a PUBLIC project identifier, not a
 // secret (see https://firebase.google.com/docs/projects/api-keys). Access is
@@ -17,4 +16,3 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const database = getDatabase(app);

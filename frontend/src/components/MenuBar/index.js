@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 
 import { useAuth } from '../../context/AuthContext';
 
-const MenuBar = ({ appName, onToggleSidebar }) => {
+const MenuBar = ({ onToggleSidebar }) => {
     const { profile } = useAuth();
 
     return (
@@ -29,7 +29,6 @@ const MenuBar = ({ appName, onToggleSidebar }) => {
 };
 
 MenuBar.propTypes = {
-    appName: PropTypes.string.isRequired,
     onToggleSidebar: PropTypes.func.isRequired,
 };
 

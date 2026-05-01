@@ -134,10 +134,7 @@ const App = () => {
 
     return (
         <div>
-            <MenuBar
-                appName={config.app_name}
-                onToggleSidebar={toggleSidebar}
-            />
+            <MenuBar onToggleSidebar={toggleSidebar} />
             <Sidebar.Pushable attached='bottom'>
                 <NavSidebar
                     visible={sidebarVisible}

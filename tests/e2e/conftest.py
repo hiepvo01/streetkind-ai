@@ -27,7 +27,11 @@ DEMO_LEADER = {"email": "leader@streetkind.demo", "password": "streetkind123"}
 
 # Firebase Web API key - PUBLIC project identifier, not a secret.
 # See https://firebase.google.com/docs/projects/api-keys.
-_DEFAULT_FIREBASE_WEB_API_KEY = "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ"
+FIREBASE_WEB_API_KEY = os.environ.get(
+    "FIREBASE_WEB_API_KEY", "AIzaSyD6q7A5-g26ma7Dv2w8PLa4e0FdM_D3eVQ",
+)
+# Backwards-compat alias (older tests imported this name).
+_DEFAULT_FIREBASE_WEB_API_KEY = FIREBASE_WEB_API_KEY
 
 
 def get_firebase_id_token_for_uid(uid: str = "e2e-test-user") -> str:
