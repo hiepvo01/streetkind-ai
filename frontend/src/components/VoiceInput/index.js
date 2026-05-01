@@ -9,6 +9,7 @@ import {
     Header,
     Message,
     Loader,
+    Label,
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
@@ -31,6 +32,25 @@ const pickAudioMimeType = () => {
     return '';
 };
 
+const formatTime = (ms) => {
+    if (!ms) return '';
+    try {
+        return new Date(ms).toLocaleTimeString([], {
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+        });
+    } catch (e) { return ''; }
+};
+
+const formatDuration = (ms) => {
+    if (!ms || ms < 0) return '';
+    const s = Math.round(ms / 1000);
+    const mm = Math.floor(s / 60);
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+};
+
+let _segmentCounter = 0;
+
 const VoiceInput = ({
     speechConfig,
     transcript,
@@ -38,28 +58,58 @@ const VoiceInput = ({
     formType,
     site,
     onExtracted,
-    onRecordingCaptured,
+    onRecordingsChange,
     submitted,
 }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [extracting, setExtracting] = useState(false);
     const [error, setError] = useState(null);
     const [warning, setWarning] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
+    // List of completed recording segments. Each segment is one upcoming
+    // transcript record on submit. The data model already supports many
+    // transcripts per incident.
+    const [segments, setSegments] = useState([]);
     const recognitionRef = useRef(null);
+    // Speech-recognition state for the CURRENT segment only. Each new
+    // recording resets these but the parent `transcript` keeps growing.
     const finalTranscriptRef = useRef('');
+    const segmentBaseRef = useRef('');     // transcript value at this segment's start
+    const segmentStartIdxRef = useRef(0);  // index in master transcript where this segment begins
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const mediaStreamRef = useRef(null);
     const recordingStartMsRef = useRef(null);
+    const liveTextRef = useRef('');
+    // Track latest transcript prop in a ref so callbacks see the current
+    // value without needing to be re-created on every keystroke.
+    const transcriptRef = useRef(transcript);
+    useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
 
-    // Revoke any object URL when this component unmounts or a new recording
-    // replaces it - browsers leak memory otherwise.
+    // Bubble segment changes up to the parent (App.js) so the submit flow
+    // sees the full list when persisting.
+    useEffect(() => {
+        if (onRecordingsChange) {
+            onRecordingsChange(segments.map((s) => ({
+                blob: s.blob,
+                text: s.text,
+                durationMs: s.durationMs,
+                startedAt: s.startedAt,
+            })));
+        }
+    }, [segments, onRecordingsChange]);
+
+    // Track latest segments in a ref so the unmount cleanup sees the final
+    // list without re-running on every change. Avoids the eslint
+    // exhaustive-deps warning while still cleaning up reliably on unmount.
+    const segmentsRef = useRef(segments);
+    useEffect(() => { segmentsRef.current = segments; }, [segments]);
     useEffect(() => {
         return () => {
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            segmentsRef.current.forEach((s) => {
+                if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
+            });
         };
-    }, [previewUrl]);
+    }, []);
 
     const stopAudioCapture = useCallback(() => {
         const mr = mediaRecorderRef.current;
@@ -84,19 +134,14 @@ const VoiceInput = ({
         setIsRecording(false);
     }, [stopAudioCapture]);
 
-    const startAudioCapture = useCallback(async () => {
+    const startAudioCapture = useCallback(async (segmentText) => {
         if (!AUDIO_ENABLED) {
-            return; // audio storage disabled at build time (REACT_APP_ENABLE_AUDIO)
+            return;
         }
         if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
             setWarning('Audio recording is not supported in this browser. Speech-to-text may still work.');
             return;
         }
-        // Clear any prior preview so the player resets for the new recording.
-        setPreviewUrl((prev) => {
-            if (prev) URL.revokeObjectURL(prev);
-            return null;
-        });
         setWarning(null);
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -113,26 +158,28 @@ const VoiceInput = ({
             recorder.onstop = () => {
                 const type = recorder.mimeType || 'audio/webm';
                 const blob = new Blob(audioChunksRef.current, { type });
-                const durationMs = recordingStartMsRef.current
-                    ? Date.now() - recordingStartMsRef.current
-                    : 0;
+                const startedAt = recordingStartMsRef.current || Date.now();
+                const durationMs = startedAt ? Date.now() - startedAt : 0;
                 audioChunksRef.current = [];
-                if (blob.size > 0) {
-                    // Local preview URL for immediate playback before submit.
-                    setPreviewUrl((prev) => {
-                        if (prev) URL.revokeObjectURL(prev);
-                        return URL.createObjectURL(blob);
-                    });
-                    if (onRecordingCaptured) onRecordingCaptured({ blob, durationMs });
-                }
+                if (blob.size === 0) return;
+                // Each segment's text = the slice of the master transcript
+                // that this recording contributed (anything appended after
+                // segmentStartIdxRef.current).
+                const fullText = liveTextRef.current;
+                const segmentText = fullText.slice(segmentStartIdxRef.current).trim();
+                const segment = {
+                    id: `seg-${++_segmentCounter}`,
+                    blob,
+                    text: segmentText,
+                    durationMs,
+                    startedAt,
+                    previewUrl: URL.createObjectURL(blob),
+                };
+                setSegments((prev) => [...prev, segment]);
             };
             recorder.start();
             mediaRecorderRef.current = recorder;
         } catch (e) {
-            // Mic permission denied or hardware issue - surface a non-blocking
-            // warning so the volunteer knows audio won't be saved. Speech-to-text
-            // may still work (it asks for its own permission via the
-            // SpeechRecognition API).
             const reason = e?.name === 'NotAllowedError'
                 ? 'Microphone permission was denied'
                 : (e?.message || 'Audio recording failed to start');
@@ -141,7 +188,7 @@ const VoiceInput = ({
                 + `Click the camera icon in your browser address bar to grant microphone access, then reload.`
             );
         }
-    }, [onRecordingCaptured]);
+    }, []);
 
     const startRecording = useCallback(async () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -150,14 +197,28 @@ const VoiceInput = ({
             return;
         }
 
+        // Master transcript continues to accumulate across recordings; insert
+        // a timestamp marker so the boundary is clear in the textarea. Read
+        // current transcript via ref so the callback dep list doesn't need to
+        // rebuild on every keystroke.
+        const now = new Date();
+        const ts = now.toLocaleTimeString([], {
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+        });
+        const current = transcriptRef.current || '';
+        const prefix = current ? `${current.replace(/\s+$/, '')}\n\n[${ts}] ` : `[${ts}] `;
+        segmentBaseRef.current = prefix;
+        segmentStartIdxRef.current = prefix.length;
+        finalTranscriptRef.current = '';
+        liveTextRef.current = prefix;
+        onTranscriptChange(prefix);
+
         await startAudioCapture();
 
         const recognition = new SpeechRecognition();
         recognition.continuous = speechConfig.continuous;
         recognition.interimResults = speechConfig.interim_results;
         recognition.lang = speechConfig.language;
-
-        finalTranscriptRef.current = '';
 
         recognition.onresult = (event) => {
             let interim = '';
@@ -169,7 +230,9 @@ const VoiceInput = ({
                     interim = text;
                 }
             }
-            onTranscriptChange(finalTranscriptRef.current + interim);
+            const live = segmentBaseRef.current + finalTranscriptRef.current + interim;
+            liveTextRef.current = live;
+            onTranscriptChange(live);
         };
 
         recognition.onerror = (event) => {
@@ -199,8 +262,22 @@ const VoiceInput = ({
         }
     };
 
+    const discardSegment = (segmentId) => {
+        setSegments((prev) => {
+            const next = prev.filter((s) => {
+                if (s.id === segmentId) {
+                    if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
+                    return false;
+                }
+                return true;
+            });
+            return next;
+        });
+    };
+
     const handleExtract = async () => {
-        if (!transcript.trim()) {
+        const allText = (transcript || '').trim();
+        if (!allText) {
             setError('No transcript to extract from. Please speak first.');
             return;
         }
@@ -210,7 +287,7 @@ const VoiceInput = ({
 
         const started = Date.now();
         try {
-            const result = await extractForm(transcript, formType, site);
+            const result = await extractForm(allText, formType, site);
             onExtracted(result, { latencyMs: Date.now() - started });
         } catch (e) {
             setError('Extraction failed: ' + e.message);
@@ -233,6 +310,8 @@ const VoiceInput = ({
         );
     }
 
+    const hasAnyContent = transcript.trim() || segments.length > 0;
+
     return (
         <Container style={{ paddingTop: '1rem' }}>
             <Grid container>
@@ -249,7 +328,11 @@ const VoiceInput = ({
                             <Icon name='microphone' />
                         </Button>
                         <Header as='h4' color='grey' style={{ marginTop: '1rem' }}>
-                            {isRecording ? 'Listening... tap to stop' : 'Tap to start speaking'}
+                            {isRecording
+                                ? 'Listening... tap to stop'
+                                : segments.length > 0
+                                    ? 'Tap to add another recording'
+                                    : 'Tap to start speaking'}
                         </Header>
                     </Segment>
                 </Grid.Row>
@@ -276,62 +359,92 @@ const VoiceInput = ({
                     </Grid.Row>
                 )}
 
+                {/* Combined transcript - accumulates across recordings */}
                 {transcript && (
                     <Grid.Row>
                         <Grid.Column width={16}>
                             <Segment color='blue'>
-                                <Header as='h3'>Transcript</Header>
+                                <Header as='h3'>
+                                    <Icon name='align left' color='blue' />
+                                    Transcript
+                                </Header>
                                 <Form>
                                     <Form.TextArea
-                                        rows={4}
+                                        rows={6}
                                         value={transcript}
                                         onChange={(e, { value }) => onTranscriptChange(value)}
                                         placeholder='Your speech will appear here...'
                                     />
                                 </Form>
-                                {previewUrl && (
-                                    <div style={{ marginTop: '0.75rem' }}>
-                                        <Header as='h5' style={{ marginBottom: '0.3rem' }}>
+                                <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.4rem' }}>
+                                    {isRecording
+                                        ? 'Listening - speak now. Tap stop and tap mic again to add another recording.'
+                                        : 'You can edit the text above. Tap the mic to add another recording.'}
+                                </p>
+                            </Segment>
+                        </Grid.Column>
+                    </Grid.Row>
+                )}
+
+                {/* Saved audio recordings list */}
+                {segments.length > 0 && (
+                    <Grid.Row>
+                        <Grid.Column width={16}>
+                            <Segment color='teal'>
+                                <Header as='h4'>
+                                    <Icon name='headphones' color='teal' />
+                                    {`Audio recordings (${segments.length})`}
+                                </Header>
+                                <p style={{ fontSize: '0.8rem', color: '#888' }}>
+                                    Each recording is saved as a separate audio file linked to this incident.
+                                    Discard a recording to remove its audio (the transcript text stays).
+                                </p>
+                                {segments.map((s, idx) => (
+                                    <Segment key={s.id} secondary>
+                                        <Header as='h5' style={{ marginBottom: '0.4rem' }}>
                                             <Icon name='play circle' color='blue' />
-                                            Recording preview
+                                            {`Recording ${idx + 1}`}
+                                            <Label size='tiny' style={{ marginLeft: '0.6rem' }}>
+                                                {formatTime(s.startedAt)}
+                                            </Label>
+                                            {s.durationMs > 0 && (
+                                                <Label size='tiny'>{formatDuration(s.durationMs)}</Label>
+                                            )}
                                         </Header>
-                                        <audio
-                                            controls
-                                            src={previewUrl}
-                                            style={{ width: '100%' }}
-                                        />
+                                        {s.previewUrl && (
+                                            <audio controls src={s.previewUrl} style={{ width: '100%', marginBottom: '0.4rem' }} />
+                                        )}
                                         <Button
                                             basic
                                             color='red'
-                                            size='small'
+                                            size='tiny'
                                             icon='trash alternate outline'
                                             content='Discard recording'
-                                            style={{ marginTop: '0.4rem' }}
-                                            onClick={() => {
-                                                setPreviewUrl((prev) => {
-                                                    if (prev) URL.revokeObjectURL(prev);
-                                                    return null;
-                                                });
-                                                if (onRecordingCaptured) onRecordingCaptured(null);
-                                            }}
+                                            onClick={() => discardSegment(s.id)}
                                         />
-                                    </div>
-                                )}
-                                <Button
-                                    color='green'
-                                    size='large'
-                                    style={{ marginTop: '1rem' }}
-                                    onClick={handleExtract}
-                                    disabled={extracting || !transcript.trim()}
-                                    loading={extracting}
-                                    icon='magic'
-                                    labelPosition='left'
-                                    content='Extract Form Data'
-                                />
-                                {extracting && (
-                                    <Loader active inline size='small' style={{ marginLeft: '1rem' }} />
-                                )}
+                                    </Segment>
+                                ))}
                             </Segment>
+                        </Grid.Column>
+                    </Grid.Row>
+                )}
+
+                {hasAnyContent && (
+                    <Grid.Row>
+                        <Grid.Column width={16}>
+                            <Button
+                                color='green'
+                                size='large'
+                                onClick={handleExtract}
+                                disabled={extracting || !transcript.trim()}
+                                loading={extracting}
+                                icon='magic'
+                                labelPosition='left'
+                                content='Extract Form Data'
+                            />
+                            {extracting && (
+                                <Loader active inline size='small' style={{ marginLeft: '1rem' }} />
+                            )}
                         </Grid.Column>
                     </Grid.Row>
                 )}
@@ -347,7 +460,7 @@ VoiceInput.propTypes = {
     formType: PropTypes.string.isRequired,
     site: PropTypes.string.isRequired,
     onExtracted: PropTypes.func.isRequired,
-    onRecordingCaptured: PropTypes.func,
+    onRecordingsChange: PropTypes.func,
     submitted: PropTypes.bool.isRequired,
 };
 

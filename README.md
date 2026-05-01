@@ -18,18 +18,23 @@ Volunteer speaks → Web Speech API transcribes → Claude AI extracts structure
 
 ## Features
 
-- **Voice Input**: Tap microphone, describe what happened, AI fills the forms
-- **Incident Report**: Full form with 11 encountered-by checkboxes, 6 other services, embedded client forms
-- **Client Form**: 5-tab wizard (Client Info, Basic Support, Health Support, Risk Minimisation, Services Referred) with 50+ fields matching SKSSIR exactly
-- **SafeBase Form**: Gender x age headcount grid + assistance rendered counters
-- **Dashboard**: 11 live impact statistics from Firebase
-- **My Incidents / Monitor**: Volunteers see their own reports; team leaders / admin see their hierarchy's reports, with edit + delete
-- **Transcript + audio playback**: every voice-driven submit stores the transcript text + audio (private Firebase Storage blob, 1-hour signed URLs for playback) linked to the incident
-- **Firebase Auth**: Login with email/password, role-based access
-- **Responsive**: Desktop (1920px), iPad (768px), Mobile (375px)
-- **Config-driven**: Sites, prompts, field options editable via JSON files (no code changes needed)
+- **Voice input**. Tap the microphone, describe what happened, AI fills the form. Web Speech API for real-time speech-to-text plus MediaRecorder for the audio blob.
+- **Multi-segment recordings**. Volunteers can stop and start a new recording within the same incident. Each segment becomes its own transcript record with its own audio file and timestamp. The IncidentEditModal renders all segments side by side with playback. Each completed segment has a "Discard" button so accidental recordings can be cleared before submit.
+- **Recording preview before submit**. After hitting stop, the volunteer sees a `<audio>` player for the just-recorded segment so they can verify it captured correctly *before* the form is saved.
+- **Transcript text + audio playback in My Incidents and Monitor**. The IncidentEditModal shows every transcript that was attached to an incident (with its timestamp, duration, audio player, transcript text, and AI extraction metadata).
+- **AI-driven structured form fill**. Claude (via Microsoft Foundry, tool_use) extracts gender, age group, intoxication signs, transport used, basic aid, etc. from natural Aussie volunteer phrasing. Inference is tuned by `config/prompts/incident.txt`.
+- **Magic-generate narrative**. Click the wand on the Incident form to ask Claude to draft an `incidentDescription` and `incidentOutcome` from your structured data and quick note. Per-user rate limited.
+- **Use-my-location**. Pre-fills the address from device GPS via a backend reverse-geocode proxy (cached + rate limited).
+- **Incident Report form**. Matches SKSSIR exactly: 11 encountered-by checkboxes, 6 other services, embedded client forms, quick note, description, outcome, major-incident flag.
+- **Client form (5-tab wizard)**. Client Info, Basic Support, Health Support, Risk Minimisation, Services Referred. 50+ fields matching SKSSIR.
+- **SafeBase form**. Gender x age headcount grid + assistance counters + start time.
+- **Dashboard**. 11 live impact statistics from Firebase RTDB.
+- **My Incidents / Monitor**. Volunteers see their own reports; team leaders / admin see their hierarchy's reports, with edit + delete cascading to clients, transcripts, and audio blobs.
+- **Firebase Auth**. Email/password, role-based access (Admin / Team Leader / Team Member). createdBy is always the verified token UID, never client-supplied.
+- **Responsive**. Desktop (1920px), iPad (768px), Mobile (375px).
+- **Config-driven**. Sites, prompts, field options, app name, default site editable via JSON files in `config/` with no code changes.
 
-See [FEATURES.md](FEATURES.md) for full details.
+See [FEATURES.md](FEATURES.md) for the full feature list and [DATA_MODEL.md](DATA_MODEL.md) for how incidents, transcripts, and audio blobs relate.
 
 ## Tech Stack
 
@@ -110,7 +115,19 @@ pytest tests/e2e/ -v              # headless
 pytest tests/e2e/ -v --headed     # watch the browser
 ```
 
-**Suite: 36 tests collected — 32 always-on pass + 4 AI-gated (skipped by default).** Covers login, full incident CRUD (+ access control), SafeBase submit, dashboard, transcript lifecycle, audio upload/signed URLs/cleanup, security (cross-user + cross-incident denial, path-traversal rejection, magic-byte validation), concurrency, and responsive layouts. Test data auto-cleaned after each run.
+**Suite: 36 tests collected, 32 always-on pass + 4 AI-gated (skipped by default).** Covers login, full incident CRUD plus access control, SafeBase submit, dashboard, transcript lifecycle, audio upload + signed URLs + cleanup, security (cross-user and cross-incident denial, path-traversal rejection, magic-byte validation), concurrency, and responsive layouts. Test data auto-cleaned after each run.
+
+There's also a static field-binding integrity test (`tests/test_field_binding_integrity.py`, 45 checks, no servers needed) and a UI form-binding Playwright test (`tests/e2e/test_ui_form_binding.py`) that catch the class of bug where the frontend reads a typo'd field name vs the schema.
+
+### Wiping test data
+
+```bash
+FIREBASE_SERVICE_ACCOUNT_PATH=path/to/service-account.json \
+FIREBASE_STORAGE_BUCKET=streetkind-app-dev.firebasestorage.app \
+python scripts/cleanup_test_data.py
+```
+
+Removes every record whose createdBy starts with `e2e-` or whose description / leader / first name matches a known test marker (FORM_BINDING_TEST, UI flow test, E2E test, CRUD test, PROD E2E, LOCAL_AUDIO_PROBE, etc), plus orphaned clients tied to deleted test incidents, plus all audio blobs in Firebase Storage and `AUDIO_LOCAL_DIR`. Use `CLEANUP_DRY_RUN=1` to preview without deleting.
 
 ## Project Structure
 
@@ -152,6 +169,8 @@ streetkind-ai/
   tests/
     e2e/                            # Playwright E2E tests (32 tests + 4 AI-gated)
     test_extraction.py              # AI extraction unit tests
+  scripts/
+    cleanup_test_data.py            # Wipe test fixtures from RTDB + Storage + AUDIO_LOCAL_DIR
   Dockerfile                        # Backend container (strips test deps for small image)
   .dockerignore                     # Excludes frontend, tests, service-account JSON
   firebase.json                     # Firebase Hosting + rules pointers
@@ -159,6 +178,7 @@ streetkind-ai/
   database.rules.json               # RTDB security rules (Admin SDK only)
   storage.rules                     # Storage rules (deny all; signed URLs bypass)
   DEPLOYMENT.md                     # Deployment playbook
+  DATA_MODEL.md                     # incident <-> transcript <-> audio relationships, keys, paths
 ```
 
 ## Configuration

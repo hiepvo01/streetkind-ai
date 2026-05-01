@@ -26,7 +26,7 @@ const FormPreview = ({
     fieldOptions,
     sites,
     transcript,
-    recording,
+    recordings,
     extractionMeta,
 }) => {
     const [submitting, setSubmitting] = useState(false);
@@ -34,42 +34,73 @@ const FormPreview = ({
     const [accordionActive, setAccordionActive] = useState(false);
 
     /**
-     * Save transcript (and audio if enabled) after the incident was submitted.
-     * Returns a list of non-fatal warning strings - the incident itself is
+     * Save transcripts (and audio if enabled) after the incident was submitted.
+     *
+     * One transcript record is created per recorded segment, plus a final
+     * record if there is live transcript text not yet captured into a segment
+     * (the user typed/spoke it but didn't tap stop). Each segment carries its
+     * own audio blob.
+     *
+     * Returns a list of non-fatal warning strings: the incident itself is
      * already saved, so transcript/audio failures must not look like submit
      * failures but also must not be silent (the transcript is the audit trail).
      */
     const persistTranscript = async (incidentId) => {
         const warnings = [];
-        if (!transcript || !transcript.trim()) return warnings;
+        const items = [];
 
-        let transcriptId;
-        try {
-            const res = await createTranscript(
-                incidentId,
-                transcript,
-                recording?.durationMs || 0,
-                extractionMeta || null,
-            );
-            transcriptId = res.transcriptId;
-        } catch (transcriptErr) {
-            warnings.push(
-                `Voice transcript was not saved: ${transcriptErr.message}. `
-                + `The incident report itself was saved successfully.`,
-            );
-            return warnings;
+        // 1. Each saved segment becomes one transcript with its own audio.
+        (recordings || []).forEach((seg) => {
+            if ((seg.text && seg.text.trim()) || seg.blob) {
+                items.push({
+                    text: seg.text || '',
+                    durationMs: seg.durationMs || 0,
+                    blob: seg.blob || null,
+                });
+            }
+        });
+
+        // 2. If the user has live text in the textarea that wasn't saved into
+        //    a segment yet (e.g. they typed manually instead of using mic),
+        //    persist it as a text-only transcript.
+        const liveText = (transcript || '').trim();
+        const liveAlreadyCovered = items.some((i) => (i.text || '').trim() === liveText);
+        if (liveText && !liveAlreadyCovered) {
+            items.push({ text: liveText, durationMs: 0, blob: null });
         }
 
-        if (AUDIO_ENABLED && recording?.blob && transcriptId) {
+        if (items.length === 0) return warnings;
+
+        for (const item of items) {
+            let transcriptId;
             try {
-                await uploadTranscriptAudio(incidentId, transcriptId, recording.blob);
-            } catch (audioErr) {
-                warnings.push(
-                    `Audio recording upload failed: ${audioErr.message}. `
-                    + `The text transcript was saved.`,
+                const res = await createTranscript(
+                    incidentId,
+                    item.text,
+                    item.durationMs,
+                    extractionMeta || null,
                 );
+                transcriptId = res.transcriptId;
+            } catch (transcriptErr) {
+                warnings.push(
+                    `Voice transcript was not saved: ${transcriptErr.message}. `
+                    + `The incident report itself was saved successfully.`,
+                );
+                continue;
+            }
+
+            if (AUDIO_ENABLED && item.blob && transcriptId) {
+                try {
+                    await uploadTranscriptAudio(incidentId, transcriptId, item.blob);
+                } catch (audioErr) {
+                    warnings.push(
+                        `Audio recording upload failed: ${audioErr.message}. `
+                        + `The text transcript was saved.`,
+                    );
+                }
             }
         }
+
         return warnings;
     };
 
@@ -212,7 +243,7 @@ FormPreview.propTypes = {
     fieldOptions: PropTypes.object.isRequired,
     sites: PropTypes.array.isRequired,
     transcript: PropTypes.string,
-    recording: PropTypes.object,
+    recordings: PropTypes.array,
     extractionMeta: PropTypes.object,
 };
 

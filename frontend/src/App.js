@@ -24,7 +24,7 @@ const App = () => {
     const [transcript, setTranscript] = useState('');
     const [formData, setFormData] = useState(null);
     const [submitted, setSubmitted] = useState(false);
-    const [recording, setRecording] = useState(null); // { blob, durationMs }
+    const [recordings, setRecordings] = useState([]); // [{ blob, text, durationMs, startedAt }]
     const [extractionMeta, setExtractionMeta] = useState(null); // { latencyMs, model, ... }
 
     const showMonitorNav = profile?.userLevel === 'administrator' || profile?.userLevel === 'teamLeader';
@@ -53,7 +53,7 @@ const App = () => {
     const handleReset = () => {
         setTranscript('');
         setSubmitted(false);
-        setRecording(null);
+        setRecordings([]);
         setExtractionMeta(null);
         setFormData(
             formType === 'safebase'
@@ -67,7 +67,7 @@ const App = () => {
         setFormType(type);
         setTranscript('');
         setSubmitted(false);
-        setRecording(null);
+        setRecordings([]);
         setExtractionMeta(null);
         setFormData(
             type === 'safebase'
@@ -178,7 +178,7 @@ const App = () => {
                                     formType={formType}
                                     site={site}
                                     onExtracted={handleExtracted}
-                                    onRecordingCaptured={setRecording}
+                                    onRecordingsChange={setRecordings}
                                     submitted={submitted}
                                 />
                                 {formData && !submitted && (
@@ -191,7 +191,7 @@ const App = () => {
                                         fieldOptions={config.field_options}
                                         sites={config.sites}
                                         transcript={transcript}
-                                        recording={recording}
+                                        recordings={recordings}
                                         extractionMeta={extractionMeta}
                                     />
                                 )}
