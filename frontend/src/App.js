@@ -156,7 +156,11 @@ const App = () => {
                         {currentView === 'dashboard' ? (
                             <Dashboard />
                         ) : currentView === 'myIncidents' ? (
-                            <MyIncidents sites={config.sites} fieldOptions={config.field_options} />
+                            <MyIncidents
+                                sites={config.sites}
+                                fieldOptions={config.field_options}
+                                speechConfig={config.speech_recognition}
+                            />
                         ) : currentView === 'monitor' ? (
                             <Monitor sites={config.sites} fieldOptions={config.field_options} />
                         ) : (

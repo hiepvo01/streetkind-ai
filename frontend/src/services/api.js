@@ -263,3 +263,19 @@ export const uploadTranscriptAudio = async (formId, transcriptId, audioBlob) => 
     }
     return response.json();
 };
+
+export const deleteTranscript = async (formId, transcriptId) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(
+        apiUrl(`/api/forms/incident/${formId}/transcripts/${transcriptId}`),
+        {
+            method: 'DELETE',
+            headers,
+        },
+    );
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to delete transcript');
+    }
+    return response.json();
+};

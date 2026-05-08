@@ -401,6 +401,56 @@ def create_transcript(
     return {"transcriptId": transcript_id}
 
 
+@router.delete("/api/forms/incident/{form_id}/transcripts/{transcript_id}")
+def delete_transcript_route(
+    form_id: str,
+    transcript_id: str,
+    caller_uid: str = Depends(get_current_uid),
+):
+    """
+    Admin-only: delete a single transcript and its audio blob for an incident.
+
+    Non-admins are allowed to record/discard locally, but cannot delete
+    already-saved recordings.
+    """
+    from firebase_admin import db as _db
+    from .services.firebase_client import delete_audio_blob, get_user_profile
+
+    _check_incident_access(form_id, caller_uid)
+
+    profile = get_user_profile(caller_uid) or {}
+    if profile.get("userLevel") != "administrator":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    if not _RTDB_PUSH_ID_RE.match(transcript_id):
+        raise HTTPException(status_code=400, detail="Invalid transcript_id")
+
+    existing = _db.reference(f"transcripts/{transcript_id}").get()
+    if not existing or existing.get("incidentId") != form_id:
+        raise HTTPException(status_code=404, detail="Transcript not found for this incident")
+
+    # Best-effort: delete audio first, then RTDB. If audio deletion fails we
+    # still remove the transcript record to respect the user's intent.
+    delete_audio_blob(form_id, transcript_id)
+
+    _db.reference(f"transcripts/{transcript_id}").delete()
+
+    # Remove the transcriptId from the incident's transcriptIds list (if present).
+    try:
+        ref = _db.reference(f"incidentForms/{form_id}/transcriptIds")
+        ids = ref.get() or []
+        if isinstance(ids, list):
+            ref.set([t for t in ids if t != transcript_id])
+    except Exception:
+        # Don't fail the delete if index cleanup fails.
+        logger.warning(
+            "Failed to remove transcriptId=%s from incidentForms/%s/transcriptIds",
+            transcript_id, form_id,
+        )
+
+    return {"status": "deleted", "form_id": form_id, "transcript_id": transcript_id}
+
+
 _AUDIO_MAGIC = {
     b"\x1a\x45\xdf\xa3": "webm/matroska EBML",  # WebM + MKV
     b"OggS": "ogg",

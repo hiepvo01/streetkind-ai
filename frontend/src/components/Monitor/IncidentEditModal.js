@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Button, Divider, Header, Icon, Label, Loader, Message, Modal, Segment } from 'semantic-ui-react';
 
-import { fetchIncidentFull, fetchIncidentTranscripts, updateIncident } from '../../services/api';
+import {
+    createTranscript,
+    deleteTranscript,
+    fetchIncidentFull,
+    fetchIncidentTranscripts,
+    updateIncident,
+    uploadTranscriptAudio,
+} from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import IncidentForm from '../forms/IncidentForm';
+import VoiceInput from '../VoiceInput';
+
+const AUDIO_ENABLED = process.env.REACT_APP_ENABLE_AUDIO === '1';
 
 const formatDate = (ms) => {
     if (!ms) return '';
@@ -18,7 +29,7 @@ const formatDuration = (ms) => {
     return `${mm}:${ss}`;
 };
 
-const TranscriptPanel = ({ transcripts }) => {
+const TranscriptPanel = ({ transcripts, isAdmin, deletingId, onDelete }) => {
     if (!transcripts || transcripts.length === 0) {
         return (
             <Segment basic>
@@ -61,6 +72,20 @@ const TranscriptPanel = ({ transcripts }) => {
                             {t.extractionMeta.latencyMs > 0 && <span>Latency: {t.extractionMeta.latencyMs}ms</span>}
                         </div>
                     )}
+                    {isAdmin && (
+                        <div style={{ marginTop: '0.6rem' }}>
+                            <Button
+                                basic
+                                color='red'
+                                size='tiny'
+                                icon='trash alternate outline'
+                                content='Delete recording'
+                                disabled={!t.id || deletingId === t.id}
+                                loading={deletingId === t.id}
+                                onClick={() => onDelete?.(t.id)}
+                            />
+                        </div>
+                    )}
                 </Segment>
             ))}
         </Segment>
@@ -69,6 +94,9 @@ const TranscriptPanel = ({ transcripts }) => {
 
 TranscriptPanel.propTypes = {
     transcripts: PropTypes.array,
+    isAdmin: PropTypes.bool,
+    deletingId: PropTypes.string,
+    onDelete: PropTypes.func,
 };
 
 const IncidentEditModal = ({
@@ -77,14 +105,24 @@ const IncidentEditModal = ({
     formId,
     sites,
     incidentFieldOptions,
+    speechConfig,
     onSaved,
 }) => {
+    const { profile } = useAuth();
+    const isAdmin = profile?.userLevel === 'administrator';
+
     const [editFormData, setEditFormData] = useState(null);
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState(null);
     const [saving, setSaving] = useState(false);
     const [transcripts, setTranscripts] = useState(null);
     const [transcriptsError, setTranscriptsError] = useState(null);
+    const [deletingTranscriptId, setDeletingTranscriptId] = useState(null);
+
+    // Local voice recordings captured during THIS edit session.
+    const [voiceTranscript, setVoiceTranscript] = useState('');
+    const [recordings, setRecordings] = useState([]); // [{ blob, text, durationMs, startedAt }]
+    const [voicePersistError, setVoicePersistError] = useState(null);
 
     useEffect(() => {
         if (!open || !formId) {
@@ -92,6 +130,10 @@ const IncidentEditModal = ({
             setEditError(null);
             setTranscripts(null);
             setTranscriptsError(null);
+            setDeletingTranscriptId(null);
+            setVoiceTranscript('');
+            setRecordings([]);
+            setVoicePersistError(null);
             return;
         }
         let cancelled = false;
@@ -101,6 +143,10 @@ const IncidentEditModal = ({
             setEditFormData(null);
             setTranscripts(null);
             setTranscriptsError(null);
+            setDeletingTranscriptId(null);
+            setVoiceTranscript('');
+            setRecordings([]);
+            setVoicePersistError(null);
             try {
                 // Fetch incident first - if THAT fails, we abort.
                 const data = await fetchIncidentFull(formId);
@@ -128,12 +174,84 @@ const IncidentEditModal = ({
         return () => { cancelled = true; };
     }, [open, formId]);
 
+    const reloadTranscripts = useCallback(async () => {
+        if (!formId) return;
+        setTranscriptsError(null);
+        try {
+            const transcriptData = await fetchIncidentTranscripts(formId);
+            setTranscripts(transcriptData?.transcripts || []);
+        } catch (e) {
+            setTranscriptsError(e.message || 'Failed to load transcripts');
+        }
+    }, [formId]);
+
+    const persistVoiceSegments = useCallback(async () => {
+        if (!formId) return;
+
+        const warnings = [];
+        const items = [];
+
+        (recordings || []).forEach((seg) => {
+            if ((seg.text && seg.text.trim()) || seg.blob) {
+                items.push({
+                    text: seg.text || '',
+                    durationMs: seg.durationMs || 0,
+                    blob: seg.blob || null,
+                });
+            }
+        });
+
+        const liveText = (voiceTranscript || '').trim();
+        const liveAlreadyCovered = items.some((i) => (i.text || '').trim() === liveText);
+        if (liveText && !liveAlreadyCovered) {
+            items.push({ text: liveText, durationMs: 0, blob: null });
+        }
+
+        if (items.length === 0) return warnings;
+
+        for (const item of items) {
+            let transcriptId;
+            try {
+                const res = await createTranscript(formId, item.text, item.durationMs, null);
+                transcriptId = res.transcriptId;
+            } catch (transcriptErr) {
+                warnings.push(`Voice transcript was not saved: ${transcriptErr.message}`);
+                continue;
+            }
+
+            if (AUDIO_ENABLED && item.blob && transcriptId) {
+                try {
+                    await uploadTranscriptAudio(formId, transcriptId, item.blob);
+                } catch (audioErr) {
+                    warnings.push(`Audio upload failed: ${audioErr.message}`);
+                }
+            }
+        }
+
+        return warnings;
+    }, [formId, recordings, voiceTranscript]);
+
     const handleSaveEdit = async (status) => {
         if (!editFormData || !formId) return;
         setSaving(true);
         setEditError(null);
+        setVoicePersistError(null);
         try {
             await updateIncident(formId, editFormData, status);
+
+            // Persist any new voice segments recorded during this edit session.
+            const warnings = await persistVoiceSegments();
+            if (warnings.length > 0) {
+                // Keep modal open so user can see what failed (incident save succeeded).
+                setVoicePersistError(warnings.join(' '));
+                await reloadTranscripts();
+                return;
+            }
+
+            // Clear local segments now that they’re saved.
+            setVoiceTranscript('');
+            setRecordings([]);
+
             onClose();
             onSaved?.();
         } catch (e) {
@@ -143,11 +261,29 @@ const IncidentEditModal = ({
         }
     };
 
+    const handleDeleteTranscript = async (transcriptId) => {
+        if (!isAdmin || !formId || !transcriptId) return;
+        setDeletingTranscriptId(transcriptId);
+        setTranscriptsError(null);
+        try {
+            await deleteTranscript(formId, transcriptId);
+            await reloadTranscripts();
+        } catch (e) {
+            setTranscriptsError(e.message || 'Failed to delete transcript');
+        } finally {
+            setDeletingTranscriptId(null);
+        }
+    };
+
     const handleClose = () => {
         setEditFormData(null);
         setEditError(null);
         setTranscripts(null);
         setTranscriptsError(null);
+        setDeletingTranscriptId(null);
+        setVoiceTranscript('');
+        setRecordings([]);
+        setVoicePersistError(null);
         onClose();
     };
 
@@ -176,6 +312,32 @@ const IncidentEditModal = ({
                 )}
                 {editFormData && !editLoading && (
                     <>
+                        {speechConfig && (
+                            <>
+                                <Header as='h4' dividing>
+                                    <Icon name='microphone' />
+                                    Add voice recording
+                                </Header>
+                                {voicePersistError && (
+                                    <Message warning size='small' onDismiss={() => setVoicePersistError(null)}>
+                                        <Icon name='warning sign' />
+                                        {voicePersistError}
+                                    </Message>
+                                )}
+                                <VoiceInput
+                                    speechConfig={speechConfig}
+                                    transcript={voiceTranscript}
+                                    onTranscriptChange={setVoiceTranscript}
+                                    formType='incident'
+                                    site={editFormData?.incident?.site || ''}
+                                    onExtracted={() => {}}
+                                    onRecordingsChange={setRecordings}
+                                    submitted={false}
+                                    submittedStatus={null}
+                                />
+                                <Divider />
+                            </>
+                        )}
                         {transcripts !== null && (
                             <>
                                 <Header as='h4' dividing>
@@ -188,7 +350,12 @@ const IncidentEditModal = ({
                                         Could not load transcripts: {transcriptsError}
                                     </Message>
                                 )}
-                                <TranscriptPanel transcripts={transcripts} />
+                                <TranscriptPanel
+                                    transcripts={transcripts}
+                                    isAdmin={isAdmin}
+                                    deletingId={deletingTranscriptId}
+                                    onDelete={handleDeleteTranscript}
+                                />
                                 <Divider />
                             </>
                         )}
@@ -236,6 +403,7 @@ IncidentEditModal.propTypes = {
     formId: PropTypes.string,
     sites: PropTypes.array.isRequired,
     incidentFieldOptions: PropTypes.object.isRequired,
+    speechConfig: PropTypes.object,
     onSaved: PropTypes.func,
 };
 

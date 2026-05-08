@@ -7,7 +7,7 @@ import { deleteIncident, fetchMonitorForms } from '../../services/api';
 import FormList from '../Monitor/FormList';
 import IncidentEditModal from '../Monitor/IncidentEditModal';
 
-const MyIncidents = ({ sites = [], fieldOptions = {} }) => {
+const MyIncidents = ({ sites = [], fieldOptions = {}, speechConfig }) => {
     const { user } = useAuth();
 
     const siteMap = useMemo(() => {
@@ -110,6 +110,7 @@ const MyIncidents = ({ sites = [], fieldOptions = {} }) => {
                 formId={editFormId}
                 sites={sites}
                 incidentFieldOptions={incidentFieldOptions}
+                speechConfig={speechConfig}
                 onSaved={loadForms}
             />
         </Container>
@@ -119,6 +120,7 @@ const MyIncidents = ({ sites = [], fieldOptions = {} }) => {
 MyIncidents.propTypes = {
     sites: PropTypes.array,
     fieldOptions: PropTypes.object,
+    speechConfig: PropTypes.object,
 };
 
 export default MyIncidents;
