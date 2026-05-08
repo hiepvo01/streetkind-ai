@@ -35,3 +35,6 @@ tests/e2e/screenshots/
 
 # Local audio dev mode (AUDIO_LOCAL_DIR contents)
 local_audio_storage/
+
+# Local test audio fixtures (real voice recordings — don't commit)
+tests/test_audio/

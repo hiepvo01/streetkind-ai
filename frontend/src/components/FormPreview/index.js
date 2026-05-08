@@ -11,11 +11,10 @@ import {
 } from 'semantic-ui-react';
 import PropTypes from 'prop-types';
 
-import { submitForm, createTranscript, uploadTranscriptAudio } from '../../services/api';
+import { submitForm } from '../../services/api';
+import { persistTranscripts } from '../../services/persistTranscripts';
 import IncidentForm from '../forms/IncidentForm';
 import SafeBaseForm from '../forms/SafeBaseForm';
-
-const AUDIO_ENABLED = process.env.REACT_APP_ENABLE_AUDIO === '1';
 
 const FormPreview = ({
     formType,
@@ -33,77 +32,6 @@ const FormPreview = ({
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
 
-    /**
-     * Save transcripts (and audio if enabled) after the incident was submitted.
-     *
-     * One transcript record is created per recorded segment, plus a final
-     * record if there is live transcript text not yet captured into a segment
-     * (the user typed/spoke it but didn't tap stop). Each segment carries its
-     * own audio blob.
-     *
-     * Returns a list of non-fatal warning strings: the incident itself is
-     * already saved, so transcript/audio failures must not look like submit
-     * failures but also must not be silent (the transcript is the audit trail).
-     */
-    const persistTranscript = async (incidentId) => {
-        const warnings = [];
-        const items = [];
-
-        // 1. Each saved segment becomes one transcript with its own audio.
-        (recordings || []).forEach((seg) => {
-            if ((seg.text && seg.text.trim()) || seg.blob) {
-                items.push({
-                    text: seg.text || '',
-                    durationMs: seg.durationMs || 0,
-                    blob: seg.blob || null,
-                });
-            }
-        });
-
-        // 2. If the user has live text in the textarea that wasn't saved into
-        //    a segment yet (e.g. they typed manually instead of using mic),
-        //    persist it as a text-only transcript.
-        const liveText = (transcript || '').trim();
-        const liveAlreadyCovered = items.some((i) => (i.text || '').trim() === liveText);
-        if (liveText && !liveAlreadyCovered) {
-            items.push({ text: liveText, durationMs: 0, blob: null });
-        }
-
-        if (items.length === 0) return warnings;
-
-        for (const item of items) {
-            let transcriptId;
-            try {
-                const res = await createTranscript(
-                    incidentId,
-                    item.text,
-                    item.durationMs,
-                    extractionMeta || null,
-                );
-                transcriptId = res.transcriptId;
-            } catch (transcriptErr) {
-                warnings.push(
-                    `Voice transcript was not saved: ${transcriptErr.message}. `
-                    + `The incident report itself was saved successfully.`,
-                );
-                continue;
-            }
-
-            if (AUDIO_ENABLED && item.blob && transcriptId) {
-                try {
-                    await uploadTranscriptAudio(incidentId, transcriptId, item.blob);
-                } catch (audioErr) {
-                    warnings.push(
-                        `Audio recording upload failed: ${audioErr.message}. `
-                        + `The text transcript was saved.`,
-                    );
-                }
-            }
-        }
-
-        return warnings;
-    };
-
     const handleSubmit = async (status = 'completed') => {
         setSubmitting(true);
         setError(null);
@@ -111,7 +39,12 @@ const FormPreview = ({
         try {
             const result = await submitForm(formType, data, status);
             if (formType === 'incident' && result?.key) {
-                const warnings = await persistTranscript(result.key);
+                const warnings = await persistTranscripts({
+                    incidentId: result.key,
+                    recordings,
+                    liveTranscript: transcript,
+                    extractionMeta,
+                });
                 if (warnings.length > 0) {
                     setError(warnings.join(' '));
                     // Don't call onSubmitted - keep the form visible so the user

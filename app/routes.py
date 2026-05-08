@@ -435,14 +435,16 @@ def delete_transcript_route(
 
     _db.reference(f"transcripts/{transcript_id}").delete()
 
-    # Remove the transcriptId from the incident's transcriptIds list (if present).
+    # Remove the transcriptId from the incident's transcriptIds list using
+    # an RTDB transaction so concurrent deletes can't clobber each other's
+    # removals (push_transcript uses the same primitive on insert).
     try:
-        ref = _db.reference(f"incidentForms/{form_id}/transcriptIds")
-        ids = ref.get() or []
-        if isinstance(ids, list):
-            ref.set([t for t in ids if t != transcript_id])
+        def _remove(current):
+            if isinstance(current, list):
+                return [t for t in current if t != transcript_id]
+            return current
+        _db.reference(f"incidentForms/{form_id}/transcriptIds").transaction(_remove)
     except Exception:
-        # Don't fail the delete if index cleanup fails.
         logger.warning(
             "Failed to remove transcriptId=%s from incidentForms/%s/transcriptIds",
             transcript_id, form_id,

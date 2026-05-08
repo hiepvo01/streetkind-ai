@@ -3,18 +3,15 @@ import PropTypes from 'prop-types';
 import { Button, Divider, Header, Icon, Label, Loader, Message, Modal, Segment } from 'semantic-ui-react';
 
 import {
-    createTranscript,
     deleteTranscript,
     fetchIncidentFull,
     fetchIncidentTranscripts,
     updateIncident,
-    uploadTranscriptAudio,
 } from '../../services/api';
+import { persistTranscripts } from '../../services/persistTranscripts';
 import { useAuth } from '../../context/AuthContext';
 import IncidentForm from '../forms/IncidentForm';
 import VoiceInput from '../VoiceInput';
-
-const AUDIO_ENABLED = process.env.REACT_APP_ENABLE_AUDIO === '1';
 
 const formatDate = (ms) => {
     if (!ms) return '';
@@ -185,52 +182,6 @@ const IncidentEditModal = ({
         }
     }, [formId]);
 
-    const persistVoiceSegments = useCallback(async () => {
-        if (!formId) return;
-
-        const warnings = [];
-        const items = [];
-
-        (recordings || []).forEach((seg) => {
-            if ((seg.text && seg.text.trim()) || seg.blob) {
-                items.push({
-                    text: seg.text || '',
-                    durationMs: seg.durationMs || 0,
-                    blob: seg.blob || null,
-                });
-            }
-        });
-
-        const liveText = (voiceTranscript || '').trim();
-        const liveAlreadyCovered = items.some((i) => (i.text || '').trim() === liveText);
-        if (liveText && !liveAlreadyCovered) {
-            items.push({ text: liveText, durationMs: 0, blob: null });
-        }
-
-        if (items.length === 0) return warnings;
-
-        for (const item of items) {
-            let transcriptId;
-            try {
-                const res = await createTranscript(formId, item.text, item.durationMs, null);
-                transcriptId = res.transcriptId;
-            } catch (transcriptErr) {
-                warnings.push(`Voice transcript was not saved: ${transcriptErr.message}`);
-                continue;
-            }
-
-            if (AUDIO_ENABLED && item.blob && transcriptId) {
-                try {
-                    await uploadTranscriptAudio(formId, transcriptId, item.blob);
-                } catch (audioErr) {
-                    warnings.push(`Audio upload failed: ${audioErr.message}`);
-                }
-            }
-        }
-
-        return warnings;
-    }, [formId, recordings, voiceTranscript]);
-
     const handleSaveEdit = async (status) => {
         if (!editFormData || !formId) return;
         setSaving(true);
@@ -240,7 +191,17 @@ const IncidentEditModal = ({
             await updateIncident(formId, editFormData, status);
 
             // Persist any new voice segments recorded during this edit session.
-            const warnings = await persistVoiceSegments();
+            // onSegmentSaved drops each successfully-saved segment from local
+            // state so a retry after partial failure doesn't re-create them.
+            const warnings = await persistTranscripts({
+                incidentId: formId,
+                recordings,
+                liveTranscript: voiceTranscript,
+                extractionMeta: null,
+                onSegmentSaved: (savedSeg) => {
+                    setRecordings((prev) => prev.filter((r) => r !== savedSeg));
+                },
+            });
             if (warnings.length > 0) {
                 // Keep modal open so user can see what failed (incident save succeeded).
                 setVoicePersistError(warnings.join(' '));
@@ -248,7 +209,7 @@ const IncidentEditModal = ({
                 return;
             }
 
-            // Clear local segments now that they’re saved.
+            // Clear local state now that everything saved.
             setVoiceTranscript('');
             setRecordings([]);
 

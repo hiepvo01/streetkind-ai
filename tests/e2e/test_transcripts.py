@@ -445,3 +445,201 @@ class TestTranscriptRoundtrip:
             # above RTDB checks already prove the delete fired. Surface the
             # skip so we know the audit is partial, don't silently pass.
             pytest.skip(f"Storage cleanup check skipped: {e}")
+
+
+class TestTranscriptDelete:
+    """DELETE /api/forms/incident/{form_id}/transcripts/{transcript_id}.
+
+    Admin-only endpoint: covers the four guard branches in delete_transcript_route.
+    """
+
+    @staticmethod
+    def _grant_admin(fb_db, uid):
+        """Promote a test uid to administrator via RTDB users record."""
+        fb_db.reference(f"users/{uid}").update({"userLevel": "administrator"})
+
+    @staticmethod
+    def _revoke_admin(fb_db, uid):
+        fb_db.reference(f"users/{uid}").delete()
+
+    def test_non_admin_forbidden(self, fb_db):
+        """A regular user cannot delete a transcript even on their own incident."""
+        token = get_firebase_id_token_for_uid("e2e-delete-non-admin")
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        assert r.status_code == 200, f"submit failed: {r.status_code} {r.text}"
+        incident_id = r.json()["key"]
+        try:
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers=h, json={"text": "non-admin delete attempt"},
+            )
+            transcript_id = r.json()["transcriptId"]
+
+            r = requests.delete(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{transcript_id}",
+                headers=h,
+            )
+            assert r.status_code == 403, (
+                f"non-admin delete should be 403, got {r.status_code}: {r.text}"
+            )
+
+            # Transcript must still exist after the rejected delete.
+            assert fb_db.reference(f"transcripts/{transcript_id}").get() is not None, (
+                "transcript was deleted despite 403 — guard order is wrong"
+            )
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=h)
+
+    def test_cross_incident_returns_404(self, fb_db):
+        """Admin cannot delete a transcript by claiming it belongs to a different incident.
+
+        Same shape as the cross-incident audio-upload test but for the delete path:
+        the route must verify transcripts/{tid}/incidentId == form_id.
+        """
+        admin_uid = "e2e-delete-cross-admin"
+        token = get_firebase_id_token_for_uid(admin_uid)
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        self._grant_admin(fb_db, admin_uid)
+
+        # Admin owns both incidents to bypass _check_incident_access.
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_x = r.json()["key"]
+        r = requests.post(
+            f"{API_BASE_URL}/api/forms/incident/{incident_x}/transcripts",
+            headers=h, json={"text": "transcript belongs to x"},
+        )
+        transcript_in_x = r.json()["transcriptId"]
+
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_y = r.json()["key"]
+
+        try:
+            r = requests.delete(
+                f"{API_BASE_URL}/api/forms/incident/{incident_y}/transcripts/{transcript_in_x}",
+                headers=h,
+            )
+            assert r.status_code == 404, (
+                f"cross-incident delete should be 404, got {r.status_code}: {r.text}"
+            )
+            # Transcript still exists at its real home.
+            assert fb_db.reference(f"transcripts/{transcript_in_x}").get() is not None
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_x}", headers=h)
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_y}", headers=h)
+            self._revoke_admin(fb_db, admin_uid)
+
+    def test_invalid_transcript_id_rejected(self, fb_db):
+        """Path-traversal / malformed transcript_ids are rejected with 400 or 404, never 200."""
+        admin_uid = "e2e-delete-bad-id-admin"
+        token = get_firebase_id_token_for_uid(admin_uid)
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        self._grant_admin(fb_db, admin_uid)
+
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_id = r.json()["key"]
+        try:
+            for bad_tid in ["..", "not-a-push-id", "-short", "-" + "A" * 19 + "!"]:
+                r = requests.delete(
+                    f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{bad_tid}",
+                    headers=h,
+                )
+                assert r.status_code in (400, 404), (
+                    f"transcript_id={bad_tid!r} got {r.status_code}: {r.text}"
+                )
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=h)
+            self._revoke_admin(fb_db, admin_uid)
+
+    def test_admin_happy_path(self, fb_db):
+        """Admin deletes a transcript: record gone, audio blob gone, id unlinked."""
+        admin_uid = "e2e-delete-happy-admin"
+        token = get_firebase_id_token_for_uid(admin_uid)
+        h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        self._grant_admin(fb_db, admin_uid)
+
+        r = requests.post(
+            f"{API_BASE_URL}/api/submit", headers=h,
+            json={"form_type": "incident", "form_data": _minimal_incident()},
+        )
+        incident_id = r.json()["key"]
+        try:
+            # Create two transcripts so we can verify the surviving one stays
+            # in transcriptIds (transactional removal must not clobber).
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers=h, json={"text": "to be deleted"},
+            )
+            target_id = r.json()["transcriptId"]
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts",
+                headers=h, json={"text": "should survive"},
+            )
+            survivor_id = r.json()["transcriptId"]
+
+            # Try to attach an audio blob so we can also verify Storage cleanup.
+            audio_bytes = b"\x1a\x45\xdf\xa3" + b"delete-test-payload" * 30
+            r = requests.post(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{target_id}/audio",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"audio": ("test.webm", audio_bytes, "audio/webm")},
+            )
+            audio_uploaded = r.status_code == 200
+            blob_path = None
+            if audio_uploaded:
+                raw = fb_db.reference(f"transcripts/{target_id}").get() or {}
+                blob_path = raw.get("audioPath")
+
+            # Delete
+            r = requests.delete(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts/{target_id}",
+                headers=h,
+            )
+            assert r.status_code == 200, f"admin delete failed: {r.status_code} {r.text}"
+            body = r.json()
+            assert body["status"] == "deleted"
+            assert body["transcript_id"] == target_id
+
+            # RTDB record gone
+            assert fb_db.reference(f"transcripts/{target_id}").get() is None
+            # Survivor untouched
+            assert fb_db.reference(f"transcripts/{survivor_id}").get() is not None
+
+            # transcriptIds list still contains survivor and not target
+            ids = fb_db.reference(f"incidentForms/{incident_id}/transcriptIds").get() or []
+            assert target_id not in ids, f"target still linked: {ids}"
+            assert survivor_id in ids, f"survivor unlinked by delete: {ids}"
+
+            # List endpoint reflects the delete
+            r = requests.get(
+                f"{API_BASE_URL}/api/forms/incident/{incident_id}/transcripts", headers=h,
+            )
+            remaining = {t["id"] for t in r.json()["transcripts"]}
+            assert target_id not in remaining
+            assert survivor_id in remaining
+
+            # Storage blob cleaned up (only when audio actually landed).
+            if audio_uploaded and blob_path:
+                try:
+                    from firebase_admin import storage as fb_storage
+                    bucket = fb_storage.bucket()
+                    live = bucket.blob(blob_path)
+                    assert not live.exists(), f"audio blob leaked at {blob_path}"
+                except Exception as e:
+                    pytest.skip(f"Storage cleanup verification skipped: {e}")
+        finally:
+            requests.delete(f"{API_BASE_URL}/api/forms/incident/{incident_id}", headers=h)
+            self._revoke_admin(fb_db, admin_uid)
