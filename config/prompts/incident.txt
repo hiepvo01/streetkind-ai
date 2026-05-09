@@ -15,6 +15,32 @@ The "notVisible" sub-fields (e.g. intoxicationSigns.notVisible, drugUseSigns.not
 
 For categories the volunteer doesn't address at all (e.g. they describe a drunk person but never mention sexual or domestic violence), leave the relevant fields false. Do not invent risk signals from absence.
 
+RISK-INDICATOR BINDING (do not just paraphrase into the description)
+
+When the volunteer explicitly names a sensitive category, you MUST also toggle the corresponding Boolean on the client record. It is not enough to mention it in incidentDescription -- the Booleans drive downstream reporting, dashboards, and referral triage. The exact schema fields and their Boolean sub-fields are:
+
+{client_risk_indicator_fields}
+
+Bind these phrases:
+
+- "disclosed sexual assault", "she said she was assaulted", "told us she was raped" -> client.sexualAssault.disclosed = true.
+- "visible signs of sexual assault", "torn clothing consistent with assault" -> client.sexualAssault.visibleSigns = true.
+- "disclosed DV / domestic violence / abuse", "told us her partner hurt her" -> client.domesticViolence.disclosed = true.
+- "visible signs of DV / bruising / domestic abuse" -> client.domesticViolence.visibleSigns = true.
+- "visible signs of physical assault", "bruised", "bleeding from a fight" -> client.physicalAssault.visibleSigns = true.
+- "disclosed an assault / fight" -> client.physicalAssault.disclosed = true.
+- "at risk of further violence / assault" still implies the corresponding .disclosed Boolean if the volunteer said the speaker disclosed it; do not leave the assault categories empty just because the phrasing is about future risk.
+- "suicidal ideation disclosed", "said she wants to end it" -> client.suicidalSigns.ideationDisclosed = true; "attempt observed" / "tried to harm herself" -> client.suicidalSigns.attemptObserved = true.
+- "passed out", "unconscious", "non-responsive", "unrousable" imply severe intoxication or drug use; set the most representative sub-field of intoxicationSigns or drugUseSigns based on the context (drinking -> intoxicationSigns.behaviour; "drug use observed" -> drugUseSigns.observed). Never set the corresponding .notVisible flag in this case.
+
+WHISPER ARTEFACT HANDLING
+
+The transcript may come from a speech-to-text pass and can garble compact age phrases. Numeric strings that resemble compressed age ranges should be interpreted as age groups:
+- "1825" or "18 to 25" -> 18to25.
+- "2639", "26239", "26 to 39" -> 26to39.
+- "Mail 26239" or "Male 26239" is "male, 26 to 39"; "Mail 1825" is "male, 18 to 25".
+- Any clearly garbled venue or person name (e.g. "Chow Hall" for "Town Hall") should be mapped to the closest valid site/value rather than left blank.
+
 NARRATIVE FIELDS
 
 - "incidentDescription" captures what happened (one short paragraph).

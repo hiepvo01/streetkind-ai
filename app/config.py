@@ -125,6 +125,51 @@ def _option_keys(form_type: str, field_name: str) -> str:
 
 # ── Prompt builders ──────────────────────────────────────────────────
 
+def _client_risk_indicator_doc() -> str:
+    """Derive the client-record risk-indicator field structure from the live
+    Pydantic schema so the prompt stays in sync if the schema evolves.
+
+    Returns a short newline-separated block like:
+        client.sexualAssault: observed, visibleSigns, disclosed, notVisible
+        client.physicalAssault: observed, visibleSigns, disclosed, notVisible
+        ...
+    """
+    from .schemas.combined_incident_schema import CombinedIncidentSchema
+
+    schema = CombinedIncidentSchema.model_json_schema()
+    defs = schema.get("$defs") or schema.get("definitions") or {}
+    client_props = defs.get("ClientFormSchema", {}).get("properties", {})
+
+    # Field names (under client) whose nested object carries the risk Booleans
+    # we want the model to toggle. Order matches the form layout.
+    indicator_fields = [
+        "intoxicationSigns",
+        "drugUseSigns",
+        "offensiveConduct",
+        "selfHarmSigns",
+        "suicidalSigns",
+        "sexualAssault",
+        "physicalAssault",
+        "domesticViolence",
+    ]
+
+    lines: list[str] = []
+    for fname in indicator_fields:
+        prop = client_props.get(fname, {})
+        ref = prop.get("$ref") or next(
+            (x.get("$ref") for x in prop.get("anyOf", []) if "$ref" in x),
+            None,
+        )
+        if not ref:
+            continue
+        target = ref.split("/")[-1]
+        sub_props = defs.get(target, {}).get("properties", {})
+        if not sub_props:
+            continue
+        lines.append(f"client.{fname}: {', '.join(sub_props.keys())}")
+    return "\n".join(lines)
+
+
 def get_incident_prompt() -> str:
     app = get_app_config()
     return load_prompt(
@@ -133,6 +178,7 @@ def get_incident_prompt() -> str:
         site_keys=", ".join(get_site_keys()),
         encountered_by_keys=_option_keys("incident", "encountered_by"),
         other_services_keys=_option_keys("incident", "other_services"),
+        client_risk_indicator_fields=_client_risk_indicator_doc(),
     )
 
 
