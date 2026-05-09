@@ -380,6 +380,7 @@ const VoiceInput = ({
     }
 
     const hasAnyContent = transcript.trim() || segments.length > 0;
+    const isTranscribing = segments.some((s) => s.polishing);
 
     return (
         <Container style={{ paddingTop: '1rem' }}>
@@ -482,7 +483,7 @@ const VoiceInput = ({
                                             {s.polishing && (
                                                 <Label size='tiny' color='yellow'>
                                                     <Icon name='magic' />
-                                                    Polishing transcript with Whisper...
+                                                    Transcribing with Whisper&hellip;
                                                 </Label>
                                             )}
                                         </Header>
@@ -511,7 +512,7 @@ const VoiceInput = ({
                                 color='green'
                                 size='large'
                                 onClick={handleExtract}
-                                disabled={extracting || !transcript.trim()}
+                                disabled={extracting || isTranscribing || !transcript.trim()}
                                 loading={extracting}
                                 icon='magic'
                                 labelPosition='left'
@@ -519,6 +520,11 @@ const VoiceInput = ({
                             />
                             {extracting && (
                                 <Loader active inline size='small' style={{ marginLeft: '1rem' }} />
+                            )}
+                            {isTranscribing && !extracting && (
+                                <span style={{ marginLeft: '1rem', color: '#888', fontSize: '0.9rem' }}>
+                                    <Icon name='magic' /> Whisper is finalising the transcript&hellip; extraction will be available once it&rsquo;s ready.
+                                </span>
                             )}
                         </Grid.Column>
                     </Grid.Row>
