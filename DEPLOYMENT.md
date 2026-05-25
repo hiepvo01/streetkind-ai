@@ -22,6 +22,10 @@ A running log of how `streetkind-ai` got to production, what's live, what's temp
 
 ## Frontend (Firebase Hosting)
 
+> ⚠️ **The frontend does NOT auto-deploy on `git push`.** Only the backend (Coolify) auto-deploys when you push to `github main`. The frontend lives on Firebase Hosting and requires a manual `firebase deploy --only hosting` step after every frontend change. Skipping this step is how we shipped the MR !9 voice-in-draft-edit feature on May 8 but had it not visible to users until May 10 — see the redeploy block below and run it whenever `frontend/src/` changes.
+
+> ⚠️ **The build needs production env vars.** Running plain `npm run build` produces a bundle that points at `localhost:8000` for the API and has audio uploads disabled, because `REACT_APP_*` vars are baked in at build time. Always run the build with `REACT_APP_API_BASE_URL=https://46-62-215-38.sslip.io REACT_APP_ENABLE_AUDIO=1` in the environment (the block below has this pre-set). If you deploy a build that was made without these vars, the live site loads but every API call fails with a CORS or connection error.
+
 **What's deployed:** the React build from `frontend/build/`, baked with build-time env vars:
 - `REACT_APP_API_BASE_URL=https://46-62-215-38.sslip.io`
 - `REACT_APP_ENABLE_AUDIO=1`
