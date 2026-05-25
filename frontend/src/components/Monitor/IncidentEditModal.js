@@ -291,7 +291,28 @@ const IncidentEditModal = ({
                                     onTranscriptChange={setVoiceTranscript}
                                     formType='incident'
                                     site={editFormData?.incident?.site || ''}
-                                    onExtracted={() => {}}
+                                    extractionPrefix={(transcripts || [])
+                                        .map((t) => (t.text || '').trim())
+                                        .filter(Boolean)
+                                        .join('\n\n')}
+                                    onExtracted={(result) => {
+                                        // Replace the form with the new extraction (mirrors
+                                        // the create-flow behaviour) but preserve the user's
+                                        // quickNote and the recorded createdDate. The
+                                        // extraction is based on the combined transcript of
+                                        // the already-saved recordings PLUS the new ones
+                                        // captured in this edit session.
+                                        setEditFormData((prev) => ({
+                                            ...result,
+                                            incident: {
+                                                ...result.incident,
+                                                quickNote: prev?.incident?.quickNote
+                                                    || result.incident?.quickNote || '',
+                                                createdDate: prev?.incident?.createdDate
+                                                    ?? result.incident?.createdDate ?? null,
+                                            },
+                                        }));
+                                    }}
                                     onRecordingsChange={setRecordings}
                                     submitted={false}
                                     submittedStatus={null}

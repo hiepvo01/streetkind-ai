@@ -62,6 +62,7 @@ const VoiceInput = ({
     onRecordingsChange,
     submitted,
     submittedStatus,
+    extractionPrefix,
 }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [extracting, setExtracting] = useState(false);
@@ -330,7 +331,13 @@ const VoiceInput = ({
     };
 
     const handleExtract = async () => {
-        const allText = (transcript || '').trim();
+        const newText = (transcript || '').trim();
+        const prefix = (extractionPrefix || '').trim();
+        // When called from the edit-draft modal, prefix contains the
+        // already-saved transcripts so the AI sees the full combined context.
+        const allText = prefix && newText
+            ? `${prefix}\n\n${newText}`
+            : (newText || prefix);
         if (!allText) {
             setError('No transcript to extract from. Please speak first.');
             return;
@@ -544,6 +551,7 @@ VoiceInput.propTypes = {
     onRecordingsChange: PropTypes.func,
     submitted: PropTypes.bool.isRequired,
     submittedStatus: PropTypes.oneOf(['completed', 'draft', null]),
+    extractionPrefix: PropTypes.string,
 };
 
 export default VoiceInput;

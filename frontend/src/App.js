@@ -84,7 +84,17 @@ const App = () => {
             if (formType === 'safebase') {
                 return { ...result, startTime: prev?.startTime ?? Date.now() };
             }
-            return result;
+            // quickNote is user input (consumed by Magic Generate, not by Extract).
+            // The /api/extract response doesn't carry it, so preserve the user's
+            // typed value through Extract rather than wiping it.
+            const prevNote = prev?.incident?.quickNote;
+            return {
+                ...result,
+                incident: {
+                    ...result.incident,
+                    quickNote: prevNote || result.incident?.quickNote || '',
+                },
+            };
         });
         setExtractionMeta({
             model: config?.ai_model || '',
