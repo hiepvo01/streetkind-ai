@@ -3,6 +3,7 @@ import { Sidebar, Loader, Segment } from 'semantic-ui-react';
 
 import { fetchConfig } from './services/api';
 import { createEmptyIncidentFormData, createEmptySafeBaseFormData } from './utils/initialFormData';
+import { mergeExtractedIncident } from './utils/mergeExtractedIncident';
 import { useAuth } from './context/AuthContext';
 import MenuBar from './components/MenuBar';
 import NavSidebar from './components/NavSidebar';
@@ -84,7 +85,7 @@ const App = () => {
             if (formType === 'safebase') {
                 return { ...result, startTime: prev?.startTime ?? Date.now() };
             }
-            return result;
+            return mergeExtractedIncident(prev, result);
         });
         setExtractionMeta({
             model: config?.ai_model || '',

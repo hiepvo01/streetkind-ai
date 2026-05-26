@@ -43,6 +43,142 @@ body {
     100% { box-shadow: 0 0 0 0 rgba(219, 40, 40, 0); }
 }
 
+/* ── Quick note FAB ────────────────────────────────────────────── */
+
+/* Full-page form: viewport-fixed, raised clear of browser chrome */
+.quick-note-fab--fixed {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 5rem;
+    z-index: 1200;
+}
+
+/* Modal form: sticky at the bottom of the scrollable Modal.Content.
+   Portaled into that scroll container so it can never overlap Modal.Actions. */
+.quick-note-fab--in-scroll {
+    position: sticky;
+    bottom: 1.25rem;
+    float: right;
+    clear: both;
+    margin-right: 1.25rem;
+    z-index: 10;
+}
+
+.quick-note-fab {
+    /* shared base — positioning is set by the modifier class above */
+}
+
+.quick-note-fab__button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 50%;
+    background: #6435c9;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-note-fab__button:hover:not(:disabled) {
+    background: #5829bb;
+    transform: scale(1.05);
+}
+
+.quick-note-fab__button--open {
+    background: #4a2a9e;
+}
+
+.quick-note-fab__button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.quick-note-fab__badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #21ba45;
+    border: 2px solid #fff;
+}
+
+/* Semantic UI blue — matches voice mic button (color="blue") */
+.quick-note-fab__panel {
+    --quick-note-blue: #2185d0;
+
+    position: absolute;
+    right: 0;
+    bottom: calc(56px + 0.75rem);
+    box-sizing: border-box;
+    width: min(320px, calc(100vw - 2.5rem));
+    height: min(320px, calc(100vw - 2.5rem));
+    padding: 0.75rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 2px solid var(--quick-note-blue);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.quick-note-fab__panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.quick-note-fab__panel-title {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.quick-note-fab__form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 !important;
+}
+
+.quick-note-fab__form .field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-bottom: 0 !important;
+}
+
+.quick-note-fab__panel textarea {
+    flex: 1;
+    min-height: 0 !important;
+    height: 100% !important;
+    resize: none;
+}
+
+.quick-note-fab__panel textarea:focus {
+    border-color: var(--quick-note-blue) !important;
+}
+
+@media only screen and (max-width: 767px) {
+    .quick-note-fab--fixed {
+        right: 1rem;
+        bottom: 5rem;
+    }
+
+    .quick-note-fab__panel {
+        width: min(280px, calc(100vw - 3rem));
+        height: min(280px, calc(100vw - 3rem));
+    }
+}
+
 /* ── Form preview ──────────────────────────────────────────────── */
 .form-preview-json {
     max-height: 400px;
