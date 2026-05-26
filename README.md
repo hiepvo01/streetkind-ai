@@ -24,7 +24,7 @@ Volunteer speaks → Web Speech API transcribes → Claude AI extracts structure
 - **Transcript text + audio playback in My Incidents and Monitor**. The IncidentEditModal shows every transcript that was attached to an incident (with its timestamp, duration, audio player, transcript text, and AI extraction metadata).
 - **AI-driven structured form fill**. Claude (via Microsoft Foundry, tool_use) extracts gender, age group, intoxication signs, transport used, basic aid, etc. from natural Aussie volunteer phrasing. Inference is tuned by `config/prompts/incident.txt`.
 - **Magic-generate narrative**. Click the wand on the Incident form to ask Claude to draft an `incidentDescription` and `incidentOutcome` from your structured data and quick note. Per-user rate limited.
-- **Use-my-location**. Pre-fills the address from device GPS via a backend reverse-geocode proxy (cached + rate limited).
+- **Use-my-location**. Pre-fills the address from device GPS or a map pin picker (Leaflet + OpenStreetMap) via a backend reverse-geocode proxy (cached + rate limited).
 - **Incident Report form**. Matches SKSSIR exactly: 11 encountered-by checkboxes, 6 other services, embedded client forms, quick note, description, outcome, major-incident flag.
 - **Client form (5-tab wizard)**. Client Info, Basic Support, Health Support, Risk Minimisation, Services Referred. 50+ fields matching SKSSIR.
 - **SafeBase form**. Gender x age headcount grid + assistance counters + start time.
