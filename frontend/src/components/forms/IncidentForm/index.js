@@ -6,11 +6,13 @@ import {
   Form,
   Header,
   Message,
+  Popup,
   Segment,
 } from 'semantic-ui-react';
 import ClientForm from '../ClientForm';
 import EncounteredBySection from './EncounteredBySection';
 import OtherServicesSection from './OtherServicesSection';
+import LocationMapModal from './LocationMapModal';
 import { createBlankClient } from '../../../utils/initialFormData';
 import { generateIncidentNarrative, reverseGeocode } from '../../../services/api';
 
@@ -34,6 +36,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   const [magicError, setMagicError] = useState(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
+  const [locationChoiceOpen, setLocationChoiceOpen] = useState(false);
+  const [mapModalOpen, setMapModalOpen] = useState(false);
 
   const incident = data.incident || {};
   const clients = data.clients || [];
@@ -52,28 +56,10 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
     });
   };
 
-  const handleUseMyLocation = async () => {
+  const applyLocationFromCoords = async (lat, lon) => {
     setGeoError(null);
-    if (!navigator.geolocation) {
-      setGeoError('Geolocation is not supported in this browser.');
-      return;
-    }
     setGeoLoading(true);
     try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000,
-        });
-      });
-
-      const lat = pos?.coords?.latitude;
-      const lon = pos?.coords?.longitude;
-      if (typeof lat !== 'number' || typeof lon !== 'number') {
-        throw new Error('Could not read coordinates from your device.');
-      }
-
       const res = await reverseGeocode(lat, lon);
       const typedAddress = (location.address || '').trim();
       const resolvedAddress = (res.address || '').trim();
@@ -98,16 +84,61 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
         },
       });
     } catch (e) {
+      setGeoError(e?.message || 'Failed to resolve address from location.');
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setLocationChoiceOpen(false);
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported in this browser.');
+      return;
+    }
+    setGeoLoading(true);
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        });
+      });
+
+      const lat = pos?.coords?.latitude;
+      const lon = pos?.coords?.longitude;
+      if (typeof lat !== 'number' || typeof lon !== 'number') {
+        throw new Error('Could not read coordinates from your device.');
+      }
+
+      await applyLocationFromCoords(lat, lon);
+    } catch (e) {
       const msg =
         e?.code === 1 ? 'Location permission denied.' :
         e?.code === 2 ? 'Location unavailable.' :
         e?.code === 3 ? 'Location request timed out.' :
         (e?.message || 'Failed to use location.');
       setGeoError(msg);
-    } finally {
       setGeoLoading(false);
     }
   };
+
+  const handlePickOnMap = () => {
+    setLocationChoiceOpen(false);
+    setMapModalOpen(true);
+  };
+
+  const handleMapConfirm = async ({ lat, lon }) => {
+    await applyLocationFromCoords(lat, lon);
+    setMapModalOpen(false);
+  };
+
+  const mapInitialLat =
+    typeof location.latitude === 'number' ? location.latitude : null;
+  const mapInitialLon =
+    typeof location.longitude === 'number' ? location.longitude : null;
 
   const handleEncounteredByChange = (updated) => {
     onChange({ ...data, incident: { ...incident, encounteredBy: updated } });
@@ -210,14 +241,50 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
                 onDismiss={() => setGeoError(null)}
               />
             )}
-            <Button
-              type="button"
-              icon="location arrow"
-              content="Use my location"
-              loading={geoLoading}
+            <Popup
+              on="click"
+              open={locationChoiceOpen}
+              onOpen={() => setLocationChoiceOpen(true)}
+              onClose={() => setLocationChoiceOpen(false)}
+              position="bottom left"
+              wide
               disabled={geoLoading}
-              onClick={handleUseMyLocation}
-              style={{ marginBottom: '3rem' }}
+              trigger={
+                <Button
+                  type="button"
+                  icon="location arrow"
+                  content="Use my location"
+                  loading={geoLoading}
+                  disabled={geoLoading}
+                  style={{ marginBottom: '3rem' }}
+                />
+              }
+              content={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <Button
+                    type="button"
+                    icon="crosshairs"
+                    content="Use current location"
+                    onClick={handleUseCurrentLocation}
+                    disabled={geoLoading}
+                  />
+                  <Button
+                    type="button"
+                    icon="map"
+                    content="Pick on map"
+                    onClick={handlePickOnMap}
+                    disabled={geoLoading}
+                  />
+                </div>
+              }
+            />
+            <LocationMapModal
+              open={mapModalOpen}
+              onClose={() => setMapModalOpen(false)}
+              initialLat={mapInitialLat}
+              initialLon={mapInitialLon}
+              onConfirm={handleMapConfirm}
+              loading={geoLoading}
             />
             <Form.Field style={{ marginTop: '0.25rem', marginBottom: '1rem' }}>
               <label>Date/Time (Created)</label>

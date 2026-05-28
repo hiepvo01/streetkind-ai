@@ -97,6 +97,7 @@ def reverse_geocode(
         "lat": str(lat),
         "lon": str(lon),
         "addressdetails": "1",
+        "extratags": "1",
         "zoom": "18",
     }
 
@@ -113,12 +114,73 @@ def reverse_geocode(
     except Exception as e:
         raise ValueError(f"Nominatim returned invalid JSON: {e}") from e
 
-    address = (data.get("display_name") or "").strip()
+    addr = data.get("address") or {}
+    # extratags contains OSM-tagged addr:street / addr:housenumber on POIs —
+    # more accurate than Nominatim's road interpolation for businesses/buildings.
+    extratags = data.get("extratags") or {}
+    parts: list[str] = []
+
+    # Named place at the pin (park, building, venue, etc.).
+    # Present when the pin is not directly on a named road.
+    place = (
+        addr.get("amenity")
+        or addr.get("leisure")
+        or addr.get("tourism")
+        or addr.get("building")
+        or addr.get("historic")
+        or addr.get("natural")
+        or addr.get("man_made")
+        or ""
+    )
+
+    # Prefer explicitly OSM-tagged street address (addr:street / addr:housenumber)
+    # over Nominatim's road-network interpolation. Tagged values are set by OSM
+    # mappers from the actual signage and are typically correct even when the
+    # interpolated road snaps to the wrong nearby street.
+    tagged_street = extratags.get("addr:street") or ""
+    tagged_num = extratags.get("addr:housenumber") or ""
+
+    # Interpolated road (fallback when no explicit OSM address tags)
+    interp_num = addr.get("house_number", "")
+    interp_road = (
+        addr.get("road")
+        or addr.get("pedestrian")
+        or addr.get("path")
+        or addr.get("footway")
+        or ""
+    )
+
+    if tagged_street:
+        # Use OSM-tagged address — most accurate for businesses / mapped buildings
+        num_part = tagged_num or interp_num
+        street = f"{num_part} {tagged_street}".strip() if num_part else tagged_street
+        parts.append(f"{place}, {street}" if place else street)
+    elif interp_road:
+        street = f"{interp_num} {interp_road}".strip() if interp_num else interp_road
+        parts.append(f"{place}, {street}" if place else street)
+    elif place:
+        # No road at all — use the place name alone (park interior, open space)
+        parts.append(place)
+
+    # Locality: prefer the most specific available
+    for key in ("suburb", "neighbourhood", "quarter", "village", "town", "city"):
+        if addr.get(key):
+            parts.append(addr[key])
+            break
+
+    # State + postcode
+    state = addr.get("state", "")
+    postcode = addr.get("postcode", "")
+    if state and postcode:
+        parts.append(f"{state} {postcode}")
+    elif state or postcode:
+        parts.append(state or postcode)
+
+    address = ", ".join(p for p in parts if p)
+
+    # Final fallback to display_name if structured fields produced nothing
     if not address:
-        # Fallback: build something from address fields if present.
-        addr = data.get("address") or {}
-        parts = [addr.get(k) for k in ("road", "suburb", "city", "state", "postcode") if addr.get(k)]
-        address = ", ".join(parts)
+        address = (data.get("display_name") or "").strip()
 
     result = ReverseGeocodeResult(
         address=address,
