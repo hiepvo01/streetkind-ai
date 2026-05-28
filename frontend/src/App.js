@@ -3,6 +3,7 @@ import { Sidebar, Loader, Segment } from 'semantic-ui-react';
 
 import { fetchConfig } from './services/api';
 import { createEmptyIncidentFormData, createEmptySafeBaseFormData } from './utils/initialFormData';
+import { mergeExtractedIncident } from './utils/mergeExtractedIncident';
 import { useAuth } from './context/AuthContext';
 import MenuBar from './components/MenuBar';
 import NavSidebar from './components/NavSidebar';
@@ -87,14 +88,7 @@ const App = () => {
             // quickNote is user input (consumed by Magic Generate, not by Extract).
             // The /api/extract response doesn't carry it, so preserve the user's
             // typed value through Extract rather than wiping it.
-            const prevNote = prev?.incident?.quickNote;
-            return {
-                ...result,
-                incident: {
-                    ...result.incident,
-                    quickNote: prevNote || result.incident?.quickNote || '',
-                },
-            };
+            return mergeExtractedIncident(prev, result);
         });
         setExtractionMeta({
             model: config?.ai_model || '',

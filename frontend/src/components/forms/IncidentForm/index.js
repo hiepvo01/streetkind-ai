@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Button,
@@ -13,6 +13,7 @@ import ClientForm from '../ClientForm';
 import EncounteredBySection from './EncounteredBySection';
 import OtherServicesSection from './OtherServicesSection';
 import LocationMapModal from './LocationMapModal';
+import QuickNoteFab from './QuickNoteFab';
 import { createBlankClient } from '../../../utils/initialFormData';
 import { generateIncidentNarrative, reverseGeocode } from '../../../services/api';
 
@@ -31,6 +32,7 @@ const hasSubstantialNarrativeText = (inc) => {
 // ---------------------------------------------------------------------------
 const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   // data = { incident: {...}, clients: [...] }
+  const containerRef = useRef(null);
   const [magicLoading, setMagicLoading] = useState(false);
   const [magicCooldown, setMagicCooldown] = useState(false);
   const [magicError, setMagicError] = useState(null);
@@ -210,7 +212,7 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   })();
 
   return (
-    <div>
+    <div ref={containerRef}>
       <Header as="h2">Incident Details</Header>
       <Form size="large">
         <Form.Group widths="equal">
@@ -350,13 +352,6 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
 
             <Divider />
 
-            <Form.TextArea
-              label="Quick note"
-              placeholder="Short notes for context (saved with the incident; used when generating narrative)"
-              rows={4}
-              value={incident.quickNote || ''}
-              onChange={(e, { value }) => handleIncidentField('quickNote', value)}
-            />
             {magicError && (
               <Message
                 error
@@ -390,6 +385,11 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               onChange={(e, { value }) => handleIncidentField('incidentOutcome', value)}
             />
       </Form>
+      <QuickNoteFab
+        containerRef={containerRef}
+        value={incident.quickNote || ''}
+        onChange={(v) => handleIncidentField('quickNote', v)}
+      />
     </div>
   );
 };
