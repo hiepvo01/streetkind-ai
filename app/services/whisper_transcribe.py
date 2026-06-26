@@ -6,8 +6,16 @@ the browser produces live text (instant feedback), then once recording stops
 the same blob is sent here for a higher-accuracy re-transcription. The
 frontend swaps the text in once this returns.
 
-Disabled when OPENAI_API_KEY is unset - callers get None back and should fall
-back to the live Web Speech text.
+The client points at one of three backends, in order of preference:
+  1. Azure AI Foundry, native Azure OpenAI route - set WHISPER_BASE_URL and
+     WHISPER_API_VERSION (mirrors how ai_extractor talks to AnthropicFoundry).
+  2. Azure AI Foundry / any OpenAI-compatible gateway - set WHISPER_BASE_URL
+     only (e.g. https://<resource>.services.ai.azure.com/openai/v1/).
+  3. Plain api.openai.com - set neither; just provide the key.
+The key comes from WHISPER_API_KEY, falling back to OPENAI_API_KEY.
+
+Disabled when no key is set - callers get None back and should fall back to
+the live Web Speech text.
 """
 
 import io
@@ -16,13 +24,57 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Default to whisper-1 (legacy, stable). Override via WHISPER_MODEL env var.
-# Newer "gpt-4o-transcribe" / "gpt-4o-mini-transcribe" models are also valid.
+# Whisper model, or the Azure deployment name when running on Foundry.
+# Defaults to whisper-1 (legacy, stable). "gpt-4o-transcribe" /
+# "gpt-4o-mini-transcribe" are also valid on api.openai.com.
 DEFAULT_MODEL = os.getenv("WHISPER_MODEL", "whisper-1")
+
+_client = None
+
+
+def _get_api_key() -> str | None:
+    # Prefer a Whisper-specific key (Foundry), fall back to the generic one.
+    return os.getenv("WHISPER_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 
 def is_enabled() -> bool:
-    return bool(os.getenv("OPENAI_API_KEY"))
+    return bool(_get_api_key())
+
+
+def _get_client():
+    """
+    Build (and cache) the OpenAI client. Routes to Azure Foundry when
+    WHISPER_BASE_URL is set, mirroring ai_extractor._get_client(); otherwise
+    talks to api.openai.com.
+    """
+    global _client
+    if _client is not None:
+        return _client
+
+    api_key = _get_api_key()
+    base_url = os.getenv("WHISPER_BASE_URL")
+    api_version = os.getenv("WHISPER_API_VERSION")
+
+    if base_url and api_version:
+        # Native Azure OpenAI route - needs an api-version; "model" below is
+        # the Azure deployment name (set via WHISPER_MODEL).
+        from openai import AzureOpenAI
+
+        _client = AzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=base_url,
+            api_version=api_version,
+        )
+    elif base_url:
+        # OpenAI-compatible gateway (incl. Foundry's /openai/v1/ surface).
+        from openai import OpenAI
+
+        _client = OpenAI(api_key=api_key, base_url=base_url)
+    else:
+        from openai import OpenAI
+
+        _client = OpenAI(api_key=api_key)  # api.openai.com
+    return _client
 
 
 def transcribe_audio(
@@ -40,10 +92,10 @@ def transcribe_audio(
     if not is_enabled():
         return None
 
-    # Imported lazily so the rest of the backend doesn't pay the import cost
-    # when Whisper isn't enabled.
+    # Build the client lazily so the rest of the backend doesn't pay the
+    # import cost (or fail on a missing openai package) when Whisper is off.
     try:
-        from openai import OpenAI
+        client = _get_client()
     except ImportError:
         logger.warning("openai package not installed; cannot transcribe")
         return None
@@ -63,7 +115,6 @@ def transcribe_audio(
     buf.name = f"audio.{ext}"
 
     try:
-        client = OpenAI()  # reads OPENAI_API_KEY from env
         kwargs = {"model": DEFAULT_MODEL, "file": buf}
         if language:
             kwargs["language"] = language
