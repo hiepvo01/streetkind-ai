@@ -11,11 +11,9 @@ Examples of the kind of inference you should always do:
 - A general descriptor like "drunk", "intoxicated", "wasted" implies the most representative sub-field of intoxicationSigns (typically `behaviour`). A specific symptom ("slurring", "stumbling") sets that specific sub-field too.
 - Common volunteer actions map to the matching support fields. "Called a taxi/uber/cab" -> transportInformation. "Walked them to their hotel" -> escortedTo.accommodation. "Gave them water/vomit bag/bandages" -> basicAid / additionalAid. "Called ambo/police" -> emergencyServicesCalled.
 
-Each risk-indicator category (intoxicationSigns, drugUseSigns, offensiveConduct, selfHarmSigns, suicidalSigns, sexualAssault, physicalAssault, domesticViolence) has a "notVisible" sub-field that is REQUIRED and mutually exclusive with that category's other sub-fields on the real form - a team leader cannot submit the form unless every single category has either a specific sign ticked or notVisible ticked, and never both. This means notVisible = true is the ordinary, expected state for any category the narration doesn't support, not an edge case:
+The "notVisible" sub-fields (e.g. intoxicationSigns.notVisible, drugUseSigns.notVisible) are meaningful: set them true ONLY when the volunteer's narration suggests the category was checked and not present (e.g. they mention sobriety, or no signs are mentioned anywhere in a description that DOES cover other categories). Don't blanket-default everything to .notVisible.
 
-- If the narration gives at least one specific sign for a category, set that sign true and leave notVisible false for that category only.
-- If the narration gives NO evidence at all for a category (e.g. they describe a drunk person but never mention sexual assault or domestic violence), set notVisible = true for that category. Do not invent specific risk signals from absence, but DO mark the category as checked-and-not-present - leaving every sub-field false (including notVisible) is not a valid state a human could have submitted, and under-reports categories that were considered and ruled out.
-- Apply this per client, across all eight categories, every time - it is normal for most clients to have notVisible = true on most categories and real signs on only one or two.
+For categories the volunteer doesn't address at all (e.g. they describe a drunk person but never mention sexual or domestic violence), leave the relevant fields false. Do not invent risk signals from absence.
 
 RISK-INDICATOR BINDING (do not just paraphrase into the description)
 
@@ -23,26 +21,17 @@ When the volunteer explicitly names a sensitive category, you MUST also toggle t
 
 {client_risk_indicator_fields}
 
-Bind these phrases. These are drawn from what team leaders actually wrote across ~2,300 incident reports since the program's Dec 2022 launch, matched against the structured fields they filled in alongside that text - not invented examples:
+Bind these phrases:
 
-- "disclosed sexual assault", "she said she was assaulted", "told us she was raped", "alleged sexual assault" -> client.sexualAssault.disclosed = true.
+- "disclosed sexual assault", "she said she was assaulted", "told us she was raped" -> client.sexualAssault.disclosed = true.
 - "visible signs of sexual assault", "torn clothing consistent with assault" -> client.sexualAssault.visibleSigns = true.
-- "disclosed DV / domestic violence / abuse", "told us her partner hurt her", "abusive relationship" -> client.domesticViolence.disclosed = true.
-- "verbal altercation between partners", "couple arguing", "male and female arguing" when there's a relationship context and the volunteer witnessed it directly rather than being told about it -> client.domesticViolence.observed = true.
+- "disclosed DV / domestic violence / abuse", "told us her partner hurt her" -> client.domesticViolence.disclosed = true.
 - "visible signs of DV / bruising / domestic abuse" -> client.domesticViolence.visibleSigns = true.
-- "visible signs of physical assault", "bruised", "bleeding from a fight", "swelling to the face/eye", "punched", "king hit" (AU slang for a single unprovoked/sucker punch) -> client.physicalAssault.visibleSigns = true.
-- "disclosed an assault / fight", "said he was assaulted", "who assaulted her", "struck [by someone]", "stated [they were] struck" - i.e. the volunteer is relaying what the person told them -> client.physicalAssault.disclosed = true.
-- "fight broke out", "brawl", "altercation broke out", "started fighting" - i.e. the volunteer witnessed it directly rather than being told about it -> client.physicalAssault.observed = true.
+- "visible signs of physical assault", "bruised", "bleeding from a fight" -> client.physicalAssault.visibleSigns = true.
+- "disclosed an assault / fight" -> client.physicalAssault.disclosed = true.
 - "at risk of further violence / assault" still implies the corresponding .disclosed Boolean if the volunteer said the speaker disclosed it; do not leave the assault categories empty just because the phrasing is about future risk.
-- "suicidal ideation disclosed", "said she wants to end it / her life", "highlighted [thoughts of] harm" -> client.suicidalSigns.ideationDisclosed = true; "attempt observed" / "tried to harm herself" -> client.suicidalSigns.attemptObserved = true.
-- "self harm", "self-inflicted [wounds]" mentioned specifically in a self-harm context (not an accidental injury) -> client.selfHarmSigns.disclosed if the client told the volunteer, or .visibleSigns if the volunteer saw it themselves. This also covers a disclosed INTENTION to self-harm even with no act yet ("said she wants to hurt herself", "thinking about self-harming") - disclosed intent still means .disclosed = true, not notVisible.
-- "blocking the path/entrance/doorway", "wouldn't move out of the way", "standing in the middle of the road/footpath" -> client.offensiveConduct.obstruction = true.
-- "drinking from a can/bottle/slab in public", "drinking on the street/train/platform", asked to "move away from the water's edge" while drinking -> client.offensiveConduct.publicDrinking = true.
+- "suicidal ideation disclosed", "said she wants to end it" -> client.suicidalSigns.ideationDisclosed = true; "attempt observed" / "tried to harm herself" -> client.suicidalSigns.attemptObserved = true.
 - "passed out", "unconscious", "non-responsive", "unrousable" imply severe intoxication or drug use; set the most representative sub-field of intoxicationSigns or drugUseSigns based on the context (drinking -> intoxicationSigns.behaviour; "drug use observed" -> drugUseSigns.observed). Never set the corresponding .notVisible flag in this case.
-- Named drugs or drug slang the client volunteers themselves ("caps"/"MDMA", "cocaine", "weed"/"cannabis"/"marijuana") -> client.drugUseSigns.disclosed = true.
-- Physical or appearance signs the volunteer can see directly - "pupils were huge / pinned", "grinding their teeth / jaw clenching", "foam around their mouth", "glassy eyes", "wired/jittery look", "sweating heavily" -> client.drugUseSigns.visibleSigns = true.
-- Behavioural patterns the volunteer noticed without being told, where the person is acting rather than looking a certain way - "behaving erratically", "more than just alcohol", "acting wired" -> client.drugUseSigns.observed = true.
-- These are not mutually exclusive: a disclosed overdose with visible symptoms sets all three.
 
 WHISPER ARTEFACT HANDLING
 
@@ -52,42 +41,8 @@ The transcript may come from a speech-to-text pass and can garble compact age ph
 - "Mail 26239" or "Male 26239" is "male, 26 to 39"; "Mail 1825" is "male, 18 to 25".
 - Any clearly garbled venue or person name (e.g. "Chow Hall" for "Town Hall") should be mapped to the closest valid site/value rather than left blank.
 
-VERIFIED SUPPORT & LOGISTICS VOCABULARY
-
-The following phrasing is also confirmed from the historical dataset:
-
-- "thongs" is Australian English for sandals/flip-flops, not underwear -> basicAid.footwear. Also "barefoot", "lost her heels".
-- Transport is a two-step distinction: transportInformation records what mode was arranged/discussed ("caught the train/bus", "hailed a taxi/cab", "ordered an uber", "night rider" [a Sydney night bus service] -> transportInformation.train / .bus / .taxi / .uber); escortedTo.transport is set additionally when the volunteer physically walked the person to that transport ("escorted to the taxi/uber", "assisted onto the bus").
-- "escorted to their hotel/accommodation" (volunteer walked them there) -> escortedTo.accommodation. Just pointing them toward it or naming where they're staying -> directions.accommodation.
-- "brought to/escorted to the safe space", "used a wheelchair to get to the safe space" -> safeSpace.escortedTo. "sobered up", "stayed until sober", "rested until they felt okay" specifically inside the safe space -> safeSpace.soberedUp.
-- "reconnected via social media", "messaged on [social app]" -> reconnection.socialNetwork. "called on the phone", "rang [a family member]", "made contact by phone" -> reconnection.telephone. Reconnected with someone in person on scene -> reconnection.person.
-- Referral service names are usually said verbatim: "Lifeline", "Beyond Blue" -> the matching clientServiceReferrals.* field.
-- "police attendance", "police arrived", "gave a statement", "apprehended" -> emergencyServicesCalled.policeServiceCalled (see INCIDENT-LEVEL VS CLIENT-LEVEL SERVICE FIELDS above for when this does vs doesn't apply). "paramedics", "handover to paramedics", "NSW Ambulance", "stretcher" -> emergencyServicesCalled.ambulanceServiceCalled. "fire brigade", "fireys", "fire truck attended" -> emergencyServicesCalled.fireServiceCalled (rare in this program's history - only set it if fire/rescue is explicitly mentioned).
-- "conducted a welfare check" / "conduct a welfare check" is the team's own term for otherSupport.welfareCheck - treat it as a direct match, not just supporting context. Distinct from otherSupport.homelessSupport, which is for "provided homelessness support/referral", "connected them with homelessness services" - actively connecting someone to homelessness services, not just checking on their wellbeing.
-- "pointed them to a bar/venue/particular place" -> directions.venue - this is specifically a bar, club, or other venue, NOT a transport hub. Directions to a station/stop/platform are directions.other + the matching transportInformation.* field, not directions.venue. directions.venue is also distinct from directions.accommodation (where they're staying).
-- "walked them back to their friends/group", "escorted her to her mates" -> escortedTo.friends (distinct from escortedTo.accommodation/transport).
-
-RISK MINIMISATION SCALES (Section 4 of the client form - easy to miss entirely, but these drive safety triage)
-
-physicalAssaultRisk and sexualAssaultRisk are 0-3 severity scales, NOT Booleans, and NOT the same fields as physicalAssault/sexualAssault (which record an assault that actually happened, whether observed or disclosed). Leave both at the default 0 in the large majority of cases (true for ~90% of real client records).
-
-The discriminator is NOT "did an assault happen" - it's whether the volunteer had an ACTIVE, IN-THE-MOMENT role managing a live or escalating situation, versus simply being told about or having witnessed something that was already over by the time they had any part to play.
-
-- client.sexualAssaultRisk: almost always independent of an actual sexualAssault - in the historical data, fewer than 5% of clients with a non-zero sexualAssaultRisk also have sexualAssault.disclosed/observed true. 0 = No Risk (default). 1 = At Risk of Sexual Assault - ongoing unwanted attention/advances happening now, or a vulnerable/intoxicated/alone client in a situation of concern, with no assault occurring. 2 = Minor Assault Risk / 3 = Major Assault Risk - volunteers actively intervening on persistent harassment happening in front of them (e.g. "we told the men to leave her alone and stay away"). A disclosed PAST sexual assault, with nothing ongoing, is sexualAssault.disclosed only - leave this at 0 even if the client is currently distressed/vulnerable as a result.
-- client.physicalAssaultRisk: 0 = No Risk (default - correct for most incidents, including most that involve a disclosed or observed physicalAssault where volunteers had no active role in the incident itself). 1 = At Risk of Violent Assault - a live threat with nothing physical having happened yet (a hostile/known aggressor still nearby, a threat was just made). 2 = Minor Conflict De-escalated - volunteers actively stepped into a minor live scuffle/argument and calmed it down. 3 = Major Conflict De-escalated - volunteers actively intervened in a serious, escalating altercation happening in front of them. Unlike sexualAssaultRisk, level 3 here frequently DOES co-occur with an actual physicalAssault in real records (~75% of the time) - a "major conflict" volunteers physically break up often already involves some contact before/during the intervention, so don't withhold level 2/3 just because physicalAssault is also true, AS LONG AS the volunteer describes actively managing a live/escalating situation rather than just recounting a past event. If the narration is purely "she told us this happened earlier" or "we saw the aftermath" with no active volunteer role in an ongoing situation, leave this at 0 regardless of how serious the disclosed/observed assault was.
-- client.injury (roadRelated / other): also about the RISK of injury given the client's situation - stumbling near a road/traffic/train tracks (roadRelated), or any other hazard given their state or location (other) - NOT an injury that already happened. Don't set these just because the client was intoxicated in general; there needs to be a specific hazard (traffic, water's edge, height, etc.) in the narration. An injury that already occurred belongs in incidentDescription and additionalAid.firstAid if treated, not here.
-
-THEFT RISK (client.clientConsciousness / clientValuablesVisibility / clientLostProperty)
-
-These three fields cluster together as theft-vulnerability indicators, not a medical triage scale - an unconscious/asleep/passed-out client with visible, unattended valuables is at real risk of theft regardless of any other risk category.
-
-- clientConsciousness: 0 = Conscious (default - most clients; don't bother setting this explicitly). 1 = Unconscious - genuinely unresponsive/medically concerning ("unconscious", "unresponsive", "wouldn't wake up", "had a seizure", handed over to paramedics on a stretcher). 2 = Asleep - sleeping normally and can be roused ("fell asleep", "insisted on sleeping it off", "woke them and they were fine"). 3 = Passed Out - intoxication-induced unresponsiveness short of a medical emergency ("passed out drunk", "out cold", "minimally responsive from alcohol", friends/family called to collect them).
-- clientValuablesVisibility: 1 = Visible only if the volunteer specifically notices/mentions the client's phone, wallet, cash, or other valuables exposed and unattended while the client is impaired; otherwise leave at the default 0 (Not Visible) - don't set this just because a client has a phone in general.
-- clientLostProperty: 1 = Valuables Lost and Found if something went missing and was located/recovered during the encounter ("found her phone", "wallet was located"); 2 = Valuables Lost if it wasn't recovered ("lost his wallet and it wasn't found", "phone never turned up"). Leave at the default 0 (No Lost Property) otherwise.
-
 NARRATIVE FIELDS
 
-- Leave "quickNote" as an empty string. It's a separate manual notes field for the team leader's own use and is never populated by extraction.
 - "incidentDescription" captures what happened (one short paragraph).
 - "incidentOutcome" captures how it was resolved.
 - For "site", map to one of: {site_keys}.
@@ -102,20 +57,14 @@ ENCOUNTERED-BY ATTRIBUTION
 - Use "self" only when the person being helped specifically approached the volunteer ("she walked up to me", "he flagged us down").
 - Use "generalPublic" when a passerby pointed the person out.
 - Use "police" / "venueSecurity" / "transportStaff" / "ambulance" when those services flagged the person.
-- CCTV/control room flagging someone to the volunteer ("CCTV called it in", "control room radioed us about...") -> "cctv". A friend or bystander connected to the client fetching the volunteer ("her friend came and got us", "someone from his group asked us to help") -> "friend". Rangers radioing/flagging the volunteer ("rangers radioed us", "rangers flagged us down") -> "rangers".
 
 OTHER SERVICES
 
 "otherServicesInvolved" is which emergency/security services were ALSO present or called. Valid options: {other_services_keys}.
 
-INCIDENT-LEVEL VS CLIENT-LEVEL SERVICE FIELDS (easy to conflate - they are not the same)
-
-- incident.otherServicesInvolved is broad: any of these services being present at, or contacted about, the general scene - "rangers radioed us", "CCTV control room called it in", "venue security brought her over", "police attended", "an ambulance was on scene". This can be true even if that service wasn't summoned specifically to help this client.
-- client.emergencyServicesCalled is narrower: set it ONLY when the volunteer (or someone at their direction) specifically called/summoned that service FOR this client's medical or safety need - "we called an ambulance for her", "paramedics treated him", "triple zero operator talked us through it". Do NOT set it just because police/ambulance/fire happened to be present or dealt with the client for an unrelated reason - e.g. "police turned up and walked her to the station" is otherServicesInvolved.police only, not emergencyServicesCalled.policeServiceCalled, unless the volunteer says they specifically called police for this client.
-
 CLIENT RECORDS
 
-For each individual person the volunteer describes, create a client entry with: gender (male/female/nonBinary), ageGroup (lessThan18/18to25/26to39/over40), alone (true/false), risk indicators (intoxicationSigns, drugUseSigns, offensiveConduct, selfHarmSigns, suicidalSigns, sexualAssault, physicalAssault, domesticViolence), risk minimisation (physicalAssaultRisk, sexualAssaultRisk, clientConsciousness, clientValuablesVisibility, clientLostProperty, injury - see RISK MINIMISATION SCALES and THEFT RISK below), support provided (reconnection, directions, transportInformation, escortedTo, safeSpace), health support (basicAid, additionalAid, emergencyServicesCalled), services referred (clientServiceReferrals), and contact info (firstName, suburb) if mentioned. The client form has no lastName/email/contactNumber fields for a team leader to review, so don't populate them even if the transcript happens to mention one.
+For each individual person the volunteer describes, create a client entry with: gender (male/female/nonBinary), ageGroup (lessThan18/18to25/26to39/over40), alone (true/false), risk indicators (intoxicationSigns, drugUseSigns, offensiveConduct, selfHarmSigns, suicidalSigns, sexualAssault, physicalAssault, domesticViolence), support provided (reconnection, directions, transportInformation, escortedTo, safeSpace), health support (basicAid, additionalAid, emergencyServicesCalled), services referred (clientServiceReferrals), and contact info (firstName, suburb) if mentioned.
 
 If multiple people are described (e.g. "we helped a couple, the woman was drunk and the man was sober"), create one client entry per person with the right details for each. If no individual is described, leave the clients list empty.
 
