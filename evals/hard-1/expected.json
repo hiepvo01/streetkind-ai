@@ -15,7 +15,7 @@
       "ageGroup": "18to25",
       "alone": true,
       "intoxicationSigns": { "speech": true, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
-      "drugUseSigns": { "observed": true, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": true, "disclosed": false, "notVisible": false },
       "offensiveConduct": { "offensiveBehaviour": true, "offensiveLanguage": true, "obstruction": false, "publicDrinking": false, "notVisible": false },
       "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
       "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },

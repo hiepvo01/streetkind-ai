@@ -102,7 +102,7 @@ def main():
             log_f.write(json.dumps(record, ensure_ascii=False) + "\n")
             log_f.flush()
 
-            mismatches = compare(expected, extracted) if extracted is not None else [f"CALL FAILED: {error}"]
+            mismatches = compare(expected, extracted, name) if extracted is not None else [f"CALL FAILED: {error}"]
             per_scenario.setdefault(name, []).append({"variant": variant, "mismatches": mismatches})
             print("PASS" if not mismatches else f"{len(mismatches)} mismatch(es)")
 

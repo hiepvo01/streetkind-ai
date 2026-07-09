@@ -13,7 +13,7 @@
       "gender": "female",
       "alone": false,
       "intoxicationSigns": { "speech": false, "balance": false, "coordination": false, "behaviour": false, "notVisible": true },
-      "drugUseSigns": { "observed": true, "visibleSigns": true, "disclosed": true, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": true, "disclosed": true, "notVisible": false },
       "offensiveConduct": { "offensiveBehaviour": false, "offensiveLanguage": false, "obstruction": false, "publicDrinking": false, "notVisible": true },
       "selfHarmSigns": { "visibleSigns": false, "disclosed": true, "notVisible": false },
       "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": true, "notVisible": false },

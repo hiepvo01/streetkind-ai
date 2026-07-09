@@ -115,6 +115,15 @@ def deep_merge_defaults(default: dict, sparse: dict) -> dict:
 SITE_LABELS = {s["key"]: s["label"] for s in cfg.get_sites()}
 FREE_TEXT_FIELDS = {"incidentDescription", "incidentOutcome"}
 
+# Per-scenario tolerances: dotted field path -> set of values that all count as
+# correct. For genuinely ambiguous fields (a judgment call the fixture author
+# flagged as defensible either way) rather than a wrong/right extraction.
+SCENARIO_TOLERANCES = {
+    "medium-1": {"clients[0].clientConsciousness": {1, 3}},  # collapsed/barely
+    # responsive is defensibly "unconscious" (1) or "passed out" (3) - see
+    # medium-1's Testing focus note.
+}
+
 
 def _normalize_address(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
@@ -129,13 +138,18 @@ def _address_matches(expected: str, actual: str) -> bool:
     return exp_n in act_n or act_n in exp_n
 
 
-def diff_dict(expected: dict, actual: dict, path: str = "") -> list[str]:
+def diff_dict(expected: dict, actual: dict, path: str = "", tolerances: dict | None = None) -> list[str]:
+    tolerances = tolerances or {}
     mismatches = []
     for k, exp_v in expected.items():
         p = f"{path}.{k}" if path else k
         if k in FREE_TEXT_FIELDS:
             continue
         act_v = actual.get(k, "<missing>")
+        if p in tolerances:
+            if act_v not in tolerances[p]:
+                mismatches.append(f"{p}: expected one of {sorted(tolerances[p])!r}, got {act_v!r}")
+            continue
         if k == "site":
             act_label = SITE_LABELS.get(act_v, act_v)
             if exp_v not in (act_v, act_label):
@@ -146,13 +160,14 @@ def diff_dict(expected: dict, actual: dict, path: str = "") -> list[str]:
                 mismatches.append(f"{p}: expected {exp_v!r}, got {act_v!r}")
             continue
         if isinstance(exp_v, dict) and isinstance(act_v, dict):
-            mismatches.extend(diff_dict(exp_v, act_v, p))
+            mismatches.extend(diff_dict(exp_v, act_v, p, tolerances))
         elif exp_v != act_v:
             mismatches.append(f"{p}: expected {exp_v!r}, got {act_v!r}")
     return mismatches
 
 
-def compare(expected: dict, actual: dict) -> list[str]:
+def compare(expected: dict, actual: dict, scenario: str | None = None) -> list[str]:
+    tolerances = SCENARIO_TOLERANCES.get(scenario, {}) if scenario else {}
     default_incident = IncidentFormSchema().model_dump(by_alias=True)
     default_client = ClientFormSchema().model_dump(by_alias=True)
 
@@ -160,6 +175,7 @@ def compare(expected: dict, actual: dict) -> list[str]:
         deep_merge_defaults(default_incident, expected.get("incident", {})),
         actual.get("incident", {}),
         "incident",
+        tolerances,
     )
 
     exp_clients = expected.get("clients", [])
@@ -170,7 +186,7 @@ def compare(expected: dict, actual: dict) -> list[str]:
         if i >= len(act_clients):
             break
         full_exp_c = deep_merge_defaults(default_client, exp_c)
-        mismatches.extend(diff_dict(full_exp_c, act_clients[i], f"clients[{i}]"))
+        mismatches.extend(diff_dict(full_exp_c, act_clients[i], f"clients[{i}]", tolerances))
     return mismatches
 
 
@@ -236,7 +252,7 @@ def main():
                     encoding="utf-8",
                 )
 
-                mismatches = compare(expected, extracted) if extracted is not None else [f"CALL FAILED: {error}"]
+                mismatches = compare(expected, extracted, name) if extracted is not None else [f"CALL FAILED: {error}"]
                 summary.append({"scenario": name, "label": label, "mismatches": mismatches})
                 print(f"{'PASS' if not mismatches else f'{len(mismatches)} mismatch(es)'}")
 
