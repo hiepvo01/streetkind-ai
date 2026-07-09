@@ -1,0 +1,30 @@
+{
+  "incident": {
+    "site": "Darling Harbour",
+    "location": { "address": "Outside Cargo Bar" },
+    "encounteredBy": { "skAmbassador": true },
+    "incidentDescription": "A young intoxicated, drug-affected male (Elias) outside Cargo Bar was having a panic attack and disclosed suicidal ideation, recent self-harm, and fear of going home due to violence from his father.",
+    "incidentOutcome": "Provided water and mental health support (grounding and breathing). His brother assisted, and he left with friends by Uber to a friend's place in Menai.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "firstName": "Elias",
+      "gender": "male",
+      "ageGroup": "18to25",
+      "alone": false,
+      "intoxicationSigns": { "speech": true, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": true, "visibleSigns": false, "disclosed": false, "notVisible": false },
+      "offensiveConduct": { "offensiveBehaviour": false, "offensiveLanguage": false, "obstruction": false, "publicDrinking": false, "notVisible": true },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": true, "notVisible": false },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": true, "attemptObserved": false, "attemptDisclosed": false, "notVisible": false },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": true, "notVisible": false },
+      "basicAid": { "water": true },
+      "additionalAid": { "mentalHealthAid": true },
+      "reconnection": { "person": true },
+      "transportInformation": { "uber": true }
+    }
+  ]
+}

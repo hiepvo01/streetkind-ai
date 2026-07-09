@@ -1,0 +1,28 @@
+{
+  "incident": {
+    "site": "The Rocks",
+    "location": { "address": "The Argyle" },
+    "encounteredBy": { "rangers": true },
+    "otherServicesInvolved": { "rangers": true },
+    "incidentDescription": "Rangers referred a heavily intoxicated, agitated woman (Skye) with signs of drug use near the Argyle. She was verbally aggressive, especially toward men. She disclosed being in an abusive relationship, a sexual assault earlier that night, and a physical fight.",
+    "incidentOutcome": "Built rapport and provided mental health support in a safe space. She declined police involvement and planned to stay with a friend rather than her partner.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "firstName": "Skye",
+      "gender": "female",
+      "alone": true,
+      "intoxicationSigns": { "speech": true, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "offensiveConduct": { "offensiveBehaviour": true, "offensiveLanguage": true, "obstruction": false, "publicDrinking": false, "notVisible": false },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": true, "notVisible": false },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": true, "notVisible": false },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": true, "notVisible": false },
+      "additionalAid": { "mentalHealthAid": true },
+      "safeSpace": { "escortedTo": true }
+    }
+  ]
+}

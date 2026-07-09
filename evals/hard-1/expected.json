@@ -1,0 +1,30 @@
+{
+  "incident": {
+    "site": "The Rocks",
+    "location": { "address": "The Rocks Safe Base" },
+    "encounteredBy": { "self": true },
+    "otherServicesInvolved": { "police": true },
+    "incidentDescription": "A woman in her early twenties (Maya) presented at the Rocks safe base heavily intoxicated with signs of drug use, poor balance/coordination, slurred speech and erratic, aggressive behaviour. She disclosed a physical altercation with her cousin (visible scratch) and disclosed bipolar, anxiety and PTSD.",
+    "incidentOutcome": "Provided water and mental health support and helped her reconnect with a friend by phone. Police attended and escorted her to The Rocks police station.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "firstName": "Maya",
+      "gender": "female",
+      "ageGroup": "18to25",
+      "alone": true,
+      "intoxicationSigns": { "speech": true, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": true, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "offensiveConduct": { "offensiveBehaviour": true, "offensiveLanguage": true, "obstruction": false, "publicDrinking": false, "notVisible": false },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": true, "visibleSigns": true, "disclosed": true, "notVisible": false },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "basicAid": { "water": true },
+      "reconnection": { "telephone": true },
+      "additionalAid": { "mentalHealthAid": true }
+    }
+  ]
+}

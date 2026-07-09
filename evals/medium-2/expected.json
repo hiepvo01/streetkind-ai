@@ -1,0 +1,32 @@
+{
+  "incident": {
+    "site": "Darling Harbour",
+    "location": { "address": "Near IMAX" },
+    "encounteredBy": { "rangers": true },
+    "otherServicesInvolved": { "rangers": true },
+    "incidentDescription": "Rangers referred an 18-year-old male (Cody, from Oatley) found passed out near IMAX — heavily intoxicated with vomiting, foaming, confusion and inability to walk unaided. He disclosed taking caps and cannabis in addition to alcohol, and was intermittently aggressive and verbally offensive to passers-by.",
+    "incidentOutcome": "Escorted to the safe base, provided water and a vomit bag, and contacted his father by phone, who collected him around 2am.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "firstName": "Cody",
+      "gender": "male",
+      "ageGroup": "18to25",
+      "suburb": "Oatley",
+      "alone": true,
+      "intoxicationSigns": { "speech": true, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": true, "visibleSigns": true, "disclosed": true, "notVisible": false },
+      "offensiveConduct": { "offensiveBehaviour": true, "offensiveLanguage": true, "obstruction": false, "publicDrinking": false, "notVisible": false },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "clientConsciousness": 3,
+      "basicAid": { "water": true, "vomitBag": true },
+      "reconnection": { "telephone": true },
+      "safeSpace": { "escortedTo": true }
+    }
+  ]
+}

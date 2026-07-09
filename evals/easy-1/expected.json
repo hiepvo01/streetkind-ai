@@ -1,0 +1,25 @@
+{
+  "incident": {
+    "site": "Town Hall",
+    "encounteredBy": { "skAmbassador": true },
+    "incidentDescription": "Welfare check on a young intoxicated male sitting alone near Town Hall. No other risk indicators.",
+    "incidentOutcome": "Provided water; he recovered and left to meet friends.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "gender": "male",
+      "ageGroup": "18to25",
+      "alone": true,
+      "intoxicationSigns": { "speech": true, "balance": false, "coordination": false, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "offensiveConduct": { "offensiveBehaviour": false, "offensiveLanguage": false, "obstruction": false, "publicDrinking": false, "notVisible": true },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "basicAid": { "water": true }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "incident": {
+    "site": "Darling Harbour",
+    "location": { "address": "Near the wharf" },
+    "encounteredBy": { "skAmbassador": true },
+    "incidentDescription": "An intoxicated, unsteady male near the wharf was assisted at the safe base until he recovered.",
+    "incidentOutcome": "Provided a vomit bag and water; he sobered up and left with his girlfriend by taxi.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "gender": "male",
+      "alone": true,
+      "intoxicationSigns": { "speech": false, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "offensiveConduct": { "offensiveBehaviour": false, "offensiveLanguage": false, "obstruction": false, "publicDrinking": false, "notVisible": true },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "basicAid": { "vomitBag": true, "water": true },
+      "safeSpace": { "soberedUp": true },
+      "reconnection": { "person": true },
+      "transportInformation": { "taxi": true }
+    }
+  ]
+}
