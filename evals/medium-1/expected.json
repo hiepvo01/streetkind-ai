@@ -1,0 +1,29 @@
+{
+  "incident": {
+    "site": "The Rocks",
+    "location": { "address": "Convenience store opposite the Argyle" },
+    "encounteredBy": { "rangers": true },
+    "otherServicesInvolved": { "ambulance": true },
+    "incidentDescription": "Rangers referred a woman collapsed in a convenience store after a deliberate overdose on over-the-counter medication (disclosed by her husband). She was barely responsive and non-verbal but responsive to her name, with a raised pulse and quick breathing, and a history of mental health issues and prior attempts.",
+    "incidentOutcome": "Placed in recovery position, provided a vomit bag and followed triple-zero instructions until an ambulance transported her and her husband to St Vincent's Hospital.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "gender": "female",
+      "alone": false,
+      "intoxicationSigns": { "speech": false, "balance": false, "coordination": false, "behaviour": false, "notVisible": true },
+      "drugUseSigns": { "observed": true, "visibleSigns": true, "disclosed": true, "notVisible": false },
+      "offensiveConduct": { "offensiveBehaviour": false, "offensiveLanguage": false, "obstruction": false, "publicDrinking": false, "notVisible": true },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": true, "notVisible": false },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": true, "notVisible": false },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "clientConsciousness": 3,
+      "basicAid": { "vomitBag": true },
+      "additionalAid": { "firstAid": true },
+      "emergencyServicesCalled": { "ambulanceServiceCalled": true }
+    }
+  ]
+}

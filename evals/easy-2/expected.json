@@ -1,0 +1,26 @@
+{
+  "incident": {
+    "site": "Wynyard",
+    "location": { "address": "Near Wynyard" },
+    "encounteredBy": { "self": true },
+    "incidentDescription": "A mildly intoxicated woman approached the team near Wynyard for directions to the train station.",
+    "incidentOutcome": "Gave directions to the station and next-train information.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "gender": "female",
+      "alone": true,
+      "intoxicationSigns": { "speech": false, "balance": false, "coordination": false, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "offensiveConduct": { "offensiveBehaviour": false, "offensiveLanguage": false, "obstruction": false, "publicDrinking": false, "notVisible": true },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "domesticViolence": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "directions": { "other": true },
+      "transportInformation": { "train": true }
+    }
+  ]
+}

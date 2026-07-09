@@ -1,0 +1,28 @@
+{
+  "incident": {
+    "site": "Darling Harbour",
+    "location": { "address": "King Street Wharf" },
+    "encounteredBy": { "skAmbassador": true },
+    "otherServicesInvolved": { "cctv": true, "rangers": true },
+    "incidentDescription": "While on patrol at King Street Wharf, observed an intoxicated, drug-affected and verbally offensive woman (Tara) being physically assaulted by her partner — witnessed a shove, with a fresh split lip and cheek bruising plus older bruising consistent with ongoing domestic violence.",
+    "incidentOutcome": "Alerted CCTV and rangers, and stayed with her to keep her safe and calm.",
+    "majorIncident": false
+  },
+  "clients": [
+    {
+      "firstName": "Tara",
+      "gender": "female",
+      "alone": false,
+      "intoxicationSigns": { "speech": true, "balance": true, "coordination": true, "behaviour": true, "notVisible": false },
+      "drugUseSigns": { "observed": false, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "offensiveConduct": { "offensiveBehaviour": true, "offensiveLanguage": true, "obstruction": false, "publicDrinking": false, "notVisible": false },
+      "selfHarmSigns": { "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
+      "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
+      "physicalAssault": { "observed": true, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "domesticViolence": { "observed": false, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "physicalAssaultRisk": 3,
+      "additionalAid": { "mentalHealthAid": true }
+    }
+  ]
+}
