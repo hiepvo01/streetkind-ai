@@ -8,6 +8,14 @@ rendered snapshot also depends on `config/app.json`/`sites.json`/`fields/*.json`
 **Model:** `claude-sonnet-4-6` (extraction) / `claude-haiku-4-5` (variant generation)
 **Frozen:** 2026-07-09, for the StreetKind AI case-study paper evaluation.
 
+**Baseline for comparison:** `main`'s `config/prompts/incident.txt` (git-HEAD prompt, before
+any of this session's fixes), hash `19e35ab08c29`, rendered snapshot saved at
+`evals/frozen_prompts/19e35ab08c29.txt`. Every "HEAD"/"baseline" number in this document is
+against this exact text, not just a git ref that could later move - `main`'s prompt file is
+intentionally kept pinned to this same content (see the "Keep config/prompts/incident.txt
+pinned..." commit) so the two should never drift apart, but this file is the citable artifact
+either way.
+
 This is the prompt version all reported evaluation numbers should cite. Further prompt
 iteration continues on a separate track (see Known limitations below) but should not
 retroactively change the numbers reported against this hash - freeze a new snapshot under
