@@ -1,6 +1,6 @@
 {
   "incident": {
-    "site": "Wynyard",
+    "site": "",
     "location": { "address": "Near Wynyard" },
     "encounteredBy": { "self": true },
     "incidentDescription": "A mildly intoxicated woman approached the team near Wynyard for directions to the train station.",

@@ -20,7 +20,7 @@
       "suicidalSigns": { "ideationObserved": false, "ideationDisclosed": false, "attemptObserved": false, "attemptDisclosed": false, "notVisible": true },
       "sexualAssault": { "observed": false, "visibleSigns": false, "disclosed": false, "notVisible": true },
       "physicalAssault": { "observed": true, "visibleSigns": true, "disclosed": false, "notVisible": false },
-      "domesticViolence": { "observed": false, "visibleSigns": true, "disclosed": false, "notVisible": false },
+      "domesticViolence": { "observed": true, "visibleSigns": true, "disclosed": false, "notVisible": false },
       "physicalAssaultRisk": 3,
       "additionalAid": { "mentalHealthAid": true }
     }
