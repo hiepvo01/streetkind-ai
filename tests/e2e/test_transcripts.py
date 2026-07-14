@@ -43,7 +43,7 @@ class TestTranscriptSecurity:
         # A creates incident + transcript
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=ha,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
         try:
@@ -85,7 +85,7 @@ class TestTranscriptSecurity:
         # A owns incident X with a transcript
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=ha,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_x = r.json()["key"]
         r = requests.post(
@@ -97,7 +97,7 @@ class TestTranscriptSecurity:
         # B owns incident Y
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=hb,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_y = r.json()["key"]
 
@@ -122,7 +122,7 @@ class TestTranscriptSecurity:
         h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
         try:
@@ -148,7 +148,7 @@ class TestTranscriptSecurity:
 
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
         try:
@@ -185,7 +185,7 @@ class TestTranscriptConcurrency:
 
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
         try:
@@ -232,7 +232,7 @@ class TestTranscriptRoundtrip:
         r = requests.post(
             f"{API_BASE_URL}/api/submit",
             headers=headers,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         assert r.status_code == 200, r.text
         incident_id = r.json()["key"]
@@ -288,7 +288,7 @@ class TestTranscriptRoundtrip:
         r = requests.post(
             f"{API_BASE_URL}/api/submit",
             headers=headers,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
 
@@ -320,7 +320,7 @@ class TestTranscriptRoundtrip:
         r = requests.post(
             f"{API_BASE_URL}/api/submit",
             headers=headers,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
 
@@ -469,7 +469,7 @@ class TestTranscriptDelete:
 
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         assert r.status_code == 200, f"submit failed: {r.status_code} {r.text}"
         incident_id = r.json()["key"]
@@ -509,7 +509,7 @@ class TestTranscriptDelete:
         # Admin owns both incidents to bypass _check_incident_access.
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_x = r.json()["key"]
         r = requests.post(
@@ -520,7 +520,7 @@ class TestTranscriptDelete:
 
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_y = r.json()["key"]
 
@@ -548,7 +548,7 @@ class TestTranscriptDelete:
 
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
         try:
@@ -573,7 +573,7 @@ class TestTranscriptDelete:
 
         r = requests.post(
             f"{API_BASE_URL}/api/submit", headers=h,
-            json={"form_type": "incident", "form_data": _minimal_incident()},
+            json={"form_type": "incident", "form_data": _minimal_incident(), "status": "draft"},
         )
         incident_id = r.json()["key"]
         try:

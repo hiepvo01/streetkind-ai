@@ -1,11 +1,16 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Checkbox, Form } from 'semantic-ui-react';
+import { Checkbox, Form, Label } from 'semantic-ui-react';
 
-const CheckboxGroup = ({ label, options, values, onChange }) => {
+const CheckboxGroup = ({ label, options, values, onChange, required, error }) => {
     return (
-        <Form.Field>
-            {label && <label style={{ fontWeight: 'bold' }}>{label}</label>}
+        <Form.Field error={!!error}>
+            {label && (
+                <label style={{ fontWeight: 'bold' }}>
+                    {label}
+                    {required && <span style={{ color: '#db2828' }}> *</span>}
+                </label>
+            )}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6em 1.2em', paddingTop: '0.3em' }}>
                 {options.map((opt) => (
                     <Checkbox
@@ -17,6 +22,11 @@ const CheckboxGroup = ({ label, options, values, onChange }) => {
                     />
                 ))}
             </div>
+            {error && (
+                <Label pointing color="red" style={{ marginTop: '0.4em' }}>
+                    {error}
+                </Label>
+            )}
         </Form.Field>
     );
 };
@@ -31,11 +41,15 @@ CheckboxGroup.propTypes = {
     ).isRequired,
     values: PropTypes.object,
     onChange: PropTypes.func.isRequired,
+    required: PropTypes.bool,
+    error: PropTypes.string,
 };
 
 CheckboxGroup.defaultProps = {
     label: '',
     values: {},
+    required: false,
+    error: '',
 };
 
 export default CheckboxGroup;

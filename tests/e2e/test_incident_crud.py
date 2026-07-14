@@ -14,6 +14,8 @@ BASE_INCIDENT = {
         "teamLeaderName": "CRUD Test Leader",
         "site": "townHall",
         "location": {"address": "CRUD test address", "latitude": None, "longitude": None},
+        "startTime": 1752000000000,
+        "endTime": 1752003600000,
         "incidentDescription": "CRUD test - delete me",
         "incidentOutcome": "CRUD test outcome",
         "encounteredBy": {"generalPublic": True, "skAmbassador": False},

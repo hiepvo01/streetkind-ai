@@ -21,6 +21,27 @@ const NARRATIVE_OVERWRITE_CONFIRM_LEN = 40;
 /** Brief client-side cooldown after a successful Magic call to reduce double-clicks (backend still enforces per-minute cap). */
 const MAGIC_CLIENT_COOLDOWN_MS = 8000;
 
+/**
+ * Convert an epoch-ms timestamp to the value a <input type="datetime-local">
+ * expects ("YYYY-MM-DDTHH:mm"), using LOCAL time components (not UTC, so the
+ * displayed clock matches the volunteer's timezone). Returns '' for blank/invalid.
+ */
+const msToLocalInput = (ms) => {
+  if (ms === null || ms === undefined || ms === '') return '';
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** Convert a datetime-local string back to epoch-ms, or null when cleared. */
+const localInputToMs = (str) => {
+  if (!str) return null;
+  const ms = new Date(str).getTime();
+  return Number.isNaN(ms) ? null : ms;
+};
+
 const hasSubstantialNarrativeText = (inc) => {
   const d = (inc.incidentDescription || '').trim();
   const o = (inc.incidentOutcome || '').trim();
@@ -30,7 +51,7 @@ const hasSubstantialNarrativeText = (inc) => {
 // ---------------------------------------------------------------------------
 // IncidentForm — matches SKSSIR IncidentForm.js field names exactly
 // ---------------------------------------------------------------------------
-const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
+const IncidentForm = ({ data, onChange, fieldOptions, sites, errors, showErrors }) => {
   // data = { incident: {...}, clients: [...] }
   const containerRef = useRef(null);
   const [magicLoading, setMagicLoading] = useState(false);
@@ -46,6 +67,12 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
   const location = incident.location || {};
   const encounteredBy = incident.encounteredBy || {};
   const otherServicesInvolved = incident.otherServicesInvolved || {};
+
+  // Incident-level errors only surface after a failed submit (showErrors).
+  const incidentErrors = showErrors ? (errors.incident || {}) : {};
+  const clientErrors = errors.clients || [];
+  const errFor = (name) =>
+    (incidentErrors[name] ? { content: incidentErrors[name], pointing: 'above' } : undefined);
 
   const handleIncidentField = (field, value) => {
     onChange({ ...data, incident: { ...incident, [field]: value } });
@@ -197,20 +224,6 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
     text: s.label,
   }));
 
-  const createdAtLabel = (() => {
-    const ts = incident.createdDate || incident.startTime;
-    if (!ts) return '—';
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-AU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  })();
-
   return (
     <div ref={containerRef}>
       <Header as="h2">Incident Details</Header>
@@ -219,12 +232,16 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               <Form.Input
                 label="Team Leader Name"
                 placeholder="Team leader name"
+                required
+                error={errFor('teamLeaderName')}
                 value={incident.teamLeaderName || ''}
                 onChange={(e, { value }) => handleIncidentField('teamLeaderName', value)}
               />
               <Form.Select
                 label="Base Site"
                 placeholder="Select site"
+                required
+                error={errFor('site')}
                 options={siteOptions}
                 value={incident.site || ''}
                 onChange={(e, { value }) => handleIncidentField('site', value)}
@@ -288,10 +305,24 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               onConfirm={handleMapConfirm}
               loading={geoLoading}
             />
-            <Form.Field style={{ marginTop: '0.25rem', marginBottom: '1rem' }}>
-              <label>Date/Time (Created)</label>
-              <div style={{ color: 'rgba(0,0,0,0.6)' }}>{createdAtLabel}</div>
-            </Form.Field>
+            <Form.Group widths="equal" style={{ marginTop: '0.5rem' }}>
+              <Form.Input
+                type="datetime-local"
+                label="Incident Start Time"
+                required
+                error={errFor('startTime')}
+                value={msToLocalInput(incident.startTime)}
+                onChange={(e, { value }) => handleIncidentField('startTime', localInputToMs(value))}
+              />
+              <Form.Input
+                type="datetime-local"
+                label="Incident End Time"
+                required
+                error={errFor('endTime')}
+                value={msToLocalInput(incident.endTime)}
+                onChange={(e, { value }) => handleIncidentField('endTime', localInputToMs(value))}
+              />
+            </Form.Group>
 
             <Divider />
 
@@ -337,6 +368,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
                   data={client}
                   onChange={(updatedClient) => handleClientChange(i, updatedClient)}
                   fieldOptions={fieldOptions}
+                  errors={clientErrors[i] || {}}
+                  showErrors={showErrors}
                 />
               </Segment>
             ))}
@@ -374,6 +407,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               label="Incident Description"
               placeholder="Describe what happened..."
               rows={8}
+              required
+              error={errFor('incidentDescription')}
               value={incident.incidentDescription || ''}
               onChange={(e, { value }) => handleIncidentField('incidentDescription', value)}
             />
@@ -381,6 +416,8 @@ const IncidentForm = ({ data, onChange, fieldOptions, sites }) => {
               label="Incident Outcome"
               placeholder="Describe the outcome..."
               rows={8}
+              required
+              error={errFor('incidentOutcome')}
               value={incident.incidentOutcome || ''}
               onChange={(e, { value }) => handleIncidentField('incidentOutcome', value)}
             />
@@ -402,6 +439,16 @@ IncidentForm.propTypes = {
   onChange: PropTypes.func.isRequired,
   fieldOptions: PropTypes.object.isRequired,
   sites: PropTypes.array.isRequired,
+  errors: PropTypes.shape({
+    incident: PropTypes.object,
+    clients: PropTypes.arrayOf(PropTypes.object),
+  }),
+  showErrors: PropTypes.bool,
+};
+
+IncidentForm.defaultProps = {
+  errors: { incident: {}, clients: [] },
+  showErrors: false,
 };
 
 export default IncidentForm;

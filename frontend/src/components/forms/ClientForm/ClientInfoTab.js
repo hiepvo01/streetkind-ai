@@ -9,9 +9,12 @@ const ALONE_OPTIONS = [
   { value: false, label: 'No' },
 ];
 
-const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
+const ClientInfoTab = ({ data, onChange, fieldOptions, errors, showErrors }) => {
   const mapKeysToValues = (options) =>
     (options || []).map((opt) => ({ value: opt.key, label: opt.label }));
+
+  // Errors only surface after a failed submit.
+  const err = showErrors ? errors : {};
 
   const handleRadioChange = (field, value) => {
     onChange({ ...data, [field]: value });
@@ -38,6 +41,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={5} computer={5}>
               <RadioGroup
                 label="Gender"
+                required
+                error={err.gender}
                 options={mapKeysToValues(fieldOptions.gender)}
                 value={data.gender}
                 onChange={(val) => handleRadioChange('gender', val)}
@@ -46,6 +51,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={5} computer={5}>
               <RadioGroup
                 label="Age Group"
+                required
+                error={err.ageGroup}
                 options={mapKeysToValues(fieldOptions.age_group)}
                 value={data.ageGroup}
                 onChange={(val) => handleRadioChange('ageGroup', val)}
@@ -54,6 +61,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={5} computer={5}>
               <RadioGroup
                 label="Alone"
+                required
+                error={err.alone}
                 options={ALONE_OPTIONS}
                 value={data.alone}
                 onChange={(val) => handleRadioChange('alone', val)}
@@ -70,6 +79,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={8}>
               <CheckboxGroup
                 label="Intoxication Signs"
+                required
+                error={err.intoxicationSigns}
                 options={fieldOptions.intoxication_signs || []}
                 values={data.intoxicationSigns || {}}
                 onChange={(key, checked) =>
@@ -80,6 +91,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={8}>
               <CheckboxGroup
                 label="Drug Use Signs"
+                required
+                error={err.drugUseSigns}
                 options={fieldOptions.drug_use_signs || []}
                 values={data.drugUseSigns || {}}
                 onChange={(key, checked) =>
@@ -98,6 +111,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <CheckboxGroup
                 label="Offensive Conduct"
+                required
+                error={err.offensiveConduct}
                 options={fieldOptions.offensive_conduct || []}
                 values={data.offensiveConduct || {}}
                 onChange={(key, checked) =>
@@ -108,6 +123,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <CheckboxGroup
                 label="Self Harm Signs"
+                required
+                error={err.selfHarmSigns}
                 options={fieldOptions.self_harm_signs || []}
                 values={data.selfHarmSigns || {}}
                 onChange={(key, checked) =>
@@ -118,6 +135,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <CheckboxGroup
                 label="Suicidal Signs"
+                required
+                error={err.suicidalSigns}
                 options={fieldOptions.suicidal_signs || []}
                 values={data.suicidalSigns || {}}
                 onChange={(key, checked) =>
@@ -136,6 +155,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <CheckboxGroup
                 label="Sexual Assault"
+                required
+                error={err.sexualAssault}
                 options={fieldOptions.assault_indicators || []}
                 values={data.sexualAssault || {}}
                 onChange={(key, checked) =>
@@ -146,6 +167,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <CheckboxGroup
                 label="Physical Assault"
+                required
+                error={err.physicalAssault}
                 options={fieldOptions.assault_indicators || []}
                 values={data.physicalAssault || {}}
                 onChange={(key, checked) =>
@@ -156,6 +179,8 @@ const ClientInfoTab = ({ data, onChange, fieldOptions }) => {
             <Grid.Column mobile={16} tablet={8} computer={5}>
               <CheckboxGroup
                 label="Domestic Violence"
+                required
+                error={err.domesticViolence}
                 options={fieldOptions.assault_indicators || []}
                 values={data.domesticViolence || {}}
                 onChange={(key, checked) =>
@@ -193,6 +218,13 @@ ClientInfoTab.propTypes = {
   data: PropTypes.object.isRequired,
   onChange: PropTypes.func.isRequired,
   fieldOptions: PropTypes.object.isRequired,
+  errors: PropTypes.object,
+  showErrors: PropTypes.bool,
+};
+
+ClientInfoTab.defaultProps = {
+  errors: {},
+  showErrors: false,
 };
 
 export default ClientInfoTab;

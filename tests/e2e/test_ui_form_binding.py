@@ -49,6 +49,8 @@ def _seed_full_client_incident(token: str) -> str:
             "site": "townHall",
             "location": {"address": "Form-binding test address",
                          "latitude": None, "longitude": None},
+            "startTime": 1752000000000,
+            "endTime": 1752003600000,
             "encounteredBy": {"generalPublic": True},
             "incidentDescription": "FORM_BINDING_TEST - delete me",
             "incidentOutcome": "ok",

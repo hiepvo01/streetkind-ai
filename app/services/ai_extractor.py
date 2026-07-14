@@ -8,6 +8,9 @@ All prompts and config are loaded from config/ files - not hardcoded here.
 
 import json
 import os
+import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from anthropic import AnthropicFoundry
 from pydantic import ValidationError
@@ -69,6 +72,24 @@ def _build_tool(name: str, description: str, schema_class) -> dict:
     }
 
 
+def _current_time_context() -> str:
+    """
+    Human-readable current time plus the epoch-ms anchor, so the model can
+    resolve relative times ("last night", "about 30 minutes ago") into the
+    epoch-millisecond timestamps startTime/endTime expect. Sydney tz because
+    the volunteers are on the ground in Sydney.
+    """
+    now_ms = int(time.time() * 1000)
+    sydney = datetime.now(ZoneInfo("Australia/Sydney"))
+    human = sydney.strftime("%A, %d %B %Y, %I:%M %p")
+    return (
+        f"Current date and time (Australia/Sydney): {human}.\n"
+        f"Current time as epoch milliseconds: {now_ms}.\n"
+        "Use this as the anchor when converting any time the volunteer mentions "
+        "into startTime/endTime (epoch milliseconds)."
+    )
+
+
 def _extract_tool_input(response) -> dict:
     """Extract the tool input from a Claude response that used tool_use."""
     for block in response.content:
@@ -97,6 +118,7 @@ def extract_incident(transcript: str, site: str = "") -> dict:
             {
                 "role": "user",
                 "content": (
+                    f"{_current_time_context()}\n\n"
                     f"Volunteer's site: {site}\n\n"
                     f"Volunteer's spoken description:\n\"{transcript}\""
                 ),
