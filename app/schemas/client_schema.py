@@ -146,7 +146,10 @@ class ClientFormSchema(BaseModel):
     email: str = ""
     contactNumber: str = ""
     suburb: str = ""
-    alone: bool = False
+    # None = unanswered (required when submitting a completed incident). Kept
+    # distinct from False ("not alone") so completeness validation can tell them
+    # apart. See app/services/incident_completeness.py.
+    alone: Optional[bool] = None
 
     # SKSSIR copies the parent incident's startTime onto each client at write
     # time. Declared here so PUT round-trips don't silently drop it.

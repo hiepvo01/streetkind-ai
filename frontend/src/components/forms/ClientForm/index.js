@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { Menu, Segment } from 'semantic-ui-react';
+import { Icon, Menu, Segment } from 'semantic-ui-react';
 import ClientInfoTab from './ClientInfoTab';
 import BasicSupportTab from './BasicSupportTab';
 import HealthSupportTab from './HealthSupportTab';
@@ -15,8 +15,18 @@ const TABS = [
   { key: 'servicesReferred', label: 'Services Referred', Component: ServicesReferredTab },
 ];
 
-const ClientForm = ({ data, onChange, fieldOptions }) => {
+const ClientForm = ({ data, onChange, fieldOptions, errors, showErrors }) => {
   const [activeTab, setActiveTab] = useState('clientInfo');
+
+  // All required client fields live on the Client Info tab. On a failed submit,
+  // jump the user there so the red labels are visible (rising edge only, so
+  // they can still navigate away afterwards).
+  const hasErrors = Object.keys(errors).length > 0;
+  const prevShowErrors = useRef(false);
+  useEffect(() => {
+    if (showErrors && !prevShowErrors.current && hasErrors) setActiveTab('clientInfo');
+    prevShowErrors.current = showErrors;
+  }, [showErrors, hasErrors]);
 
   const activeConfig = TABS.find((t) => t.key === activeTab);
   const ActiveComponent = activeConfig ? activeConfig.Component : null;
@@ -27,10 +37,14 @@ const ClientForm = ({ data, onChange, fieldOptions }) => {
         {TABS.map((tab) => (
           <Menu.Item
             key={tab.key}
-            name={tab.label}
             active={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
-          />
+          >
+            {tab.label}
+            {tab.key === 'clientInfo' && showErrors && hasErrors && (
+              <Icon name="exclamation circle" color="red" style={{ marginLeft: '0.4em' }} />
+            )}
+          </Menu.Item>
         ))}
       </Menu>
       <Segment basic>
@@ -39,6 +53,8 @@ const ClientForm = ({ data, onChange, fieldOptions }) => {
             data={data}
             onChange={onChange}
             fieldOptions={fieldOptions}
+            errors={errors}
+            showErrors={showErrors}
           />
         )}
       </Segment>
@@ -50,6 +66,13 @@ ClientForm.propTypes = {
   data: PropTypes.object.isRequired,
   onChange: PropTypes.func.isRequired,
   fieldOptions: PropTypes.object.isRequired,
+  errors: PropTypes.object,
+  showErrors: PropTypes.bool,
+};
+
+ClientForm.defaultProps = {
+  errors: {},
+  showErrors: false,
 };
 
 export default ClientForm;

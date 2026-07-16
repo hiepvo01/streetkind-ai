@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Form } from 'semantic-ui-react';
+import { Form, Label } from 'semantic-ui-react';
 
 // Coerce both sides to a comparable scalar so type drift between the
 // schema (e.g. int 0) and a stringified value (from the wire, a URL param,
@@ -13,10 +13,15 @@ const isSameValue = (a, b) => {
     return String(a) === String(b);
 };
 
-const RadioGroup = ({ label, options, value, onChange }) => {
+const RadioGroup = ({ label, options, value, onChange, required, error }) => {
     return (
-        <Form.Field>
-            {label && <label style={{ fontWeight: 'bold' }}>{label}</label>}
+        <Form.Field error={!!error}>
+            {label && (
+                <label style={{ fontWeight: 'bold' }}>
+                    {label}
+                    {required && <span style={{ color: '#db2828' }}> *</span>}
+                </label>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4em', paddingTop: '0.3em' }}>
                 {options.map((opt) => (
                     <Form.Radio
@@ -28,6 +33,11 @@ const RadioGroup = ({ label, options, value, onChange }) => {
                     />
                 ))}
             </div>
+            {error && (
+                <Label pointing color="red" style={{ marginTop: '0.4em' }}>
+                    {error}
+                </Label>
+            )}
         </Form.Field>
     );
 };
@@ -42,11 +52,15 @@ RadioGroup.propTypes = {
     ).isRequired,
     value: PropTypes.any,
     onChange: PropTypes.func.isRequired,
+    required: PropTypes.bool,
+    error: PropTypes.string,
 };
 
 RadioGroup.defaultProps = {
     label: '',
     value: null,
+    required: false,
+    error: '',
 };
 
 export default RadioGroup;

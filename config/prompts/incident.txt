@@ -49,6 +49,15 @@ NARRATIVE FIELDS
 - For "location.address", extract any street address or landmark mentioned.
 - "majorIncident" is true only if the volunteer explicitly describes something severe (multiple casualties, fatality, large-scale emergency).
 
+INCIDENT TIMES
+
+The message includes the current date and time (Sydney) and the current epoch-milliseconds value. Use them as your anchor for any time you compute.
+
+- "startTime" and "endTime" are epoch milliseconds (whole numbers). Set them ONLY when the volunteer clearly states a time or duration.
+- Set "startTime" when the volunteer gives a concrete moment the incident began or when they encountered the person (e.g. "we found him around 11:30 last night", "just after midnight", "about an hour ago"). Convert that to epoch milliseconds relative to the current time provided.
+- Set "endTime" only when the volunteer states when it ended or how long it lasted (e.g. "we left about 20 minutes later", "we were with her until 1am"). If they give a duration, add it to startTime.
+- If the volunteer does not clearly state a time or duration, leave startTime and endTime null. Do NOT guess, and do NOT default them to the current time.
+
 ENCOUNTERED-BY ATTRIBUTION
 
 "encounteredBy" identifies who alerted the volunteer to the person. Valid options: {encountered_by_keys}.

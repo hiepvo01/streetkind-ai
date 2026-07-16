@@ -13,8 +13,20 @@ import PropTypes from 'prop-types';
 
 import { submitForm } from '../../services/api';
 import { persistTranscripts } from '../../services/persistTranscripts';
+import { validateIncidentForm } from '../../utils/validators/clientValidators';
 import IncidentForm from '../forms/IncidentForm';
 import SafeBaseForm from '../forms/SafeBaseForm';
+
+const EMPTY_ERRORS = { incident: {}, clients: [] };
+
+/** Bring the first invalid field (Semantic UI marks it `.error`) into view. */
+const scrollToFirstError = () => {
+    // Defer so the red error classes are in the DOM before we query.
+    setTimeout(() => {
+        const el = document.querySelector('.field.error, .ui.form .error');
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+};
 
 const FormPreview = ({
     formType,
@@ -31,8 +43,24 @@ const FormPreview = ({
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [accordionActive, setAccordionActive] = useState(false);
+    const [errors, setErrors] = useState(EMPTY_ERRORS);
+    const [showErrors, setShowErrors] = useState(false);
 
     const handleSubmit = async (status = 'completed') => {
+        // "Confirm & Submit" enforces required fields; "Save as Draft" bypasses.
+        if (status === 'completed' && formType === 'incident') {
+            const result = validateIncidentForm(data);
+            if (result.hasErrors) {
+                setErrors(result);
+                setShowErrors(true);
+                setError(null);
+                scrollToFirstError();
+                return; // do not hit the API
+            }
+        }
+        setShowErrors(false);
+        setErrors(EMPTY_ERRORS);
+
         setSubmitting(true);
         setError(null);
 
@@ -100,6 +128,8 @@ const FormPreview = ({
                                     onChange={onDataChange}
                                     fieldOptions={{ ...(fieldOptions.incident || {}), ...(fieldOptions.client || {}) }}
                                     sites={sites}
+                                    errors={errors}
+                                    showErrors={showErrors}
                                 />
                             )}
 

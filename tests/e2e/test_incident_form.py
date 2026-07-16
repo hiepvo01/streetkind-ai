@@ -14,6 +14,8 @@ SAMPLE_INCIDENT_DATA = {
         "teamLeaderName": "E2E Test Leader",
         "site": "townHall",
         "location": {"address": "E2E Test Location", "latitude": None, "longitude": None},
+        "startTime": 1752000000000,
+        "endTime": 1752003600000,
         "encounteredBy": {
             "generalPublic": True, "skAmbassador": False, "cctv": False,
             "self": False, "friend": False, "venueSecurity": False,

@@ -64,6 +64,8 @@ def _build_minimal_incident_via_api(uid_token: str, *, with_audio: bool = False)
             "teamLeaderName": "UI Flow Test",
             "site": "townHall",
             "location": {"address": "Town Hall steps", "latitude": None, "longitude": None},
+            "startTime": 1752000000000,
+            "endTime": 1752003600000,
             "encounteredBy": {"generalPublic": True},
             "incidentDescription": "UI flow test - drunk 19yo male with friends, taxi to hotel, water provided",
             "incidentOutcome": "Escorted to taxi, water given",
@@ -77,6 +79,14 @@ def _build_minimal_incident_via_api(uid_token: str, *, with_audio: bool = False)
             "intoxicationSigns": {"behaviour": True, "speech": False, "balance": False,
                                   "coordination": False, "notVisible": False},
             "drugUseSigns": {"notVisible": True, "observed": False, "visibleSigns": False, "disclosed": False},
+            # The remaining risk groups must be explicitly resolved (notVisible)
+            # or completed-status validation rejects the submit.
+            "offensiveConduct": {"notVisible": True},
+            "selfHarmSigns": {"notVisible": True},
+            "suicidalSigns": {"notVisible": True},
+            "sexualAssault": {"notVisible": True},
+            "physicalAssault": {"notVisible": True},
+            "domesticViolence": {"notVisible": True},
             "transportInformation": {"taxi": True, "bus": False, "train": False, "uber": False, "other": False},
             "basicAid": {"water": True, "vomitBag": False, "footwear": False, "lollipop": False},
             "escortedTo": {"accommodation": True, "transport": False, "friends": False, "other": False},

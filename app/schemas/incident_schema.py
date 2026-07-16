@@ -50,8 +50,24 @@ class IncidentFormSchema(BaseModel):
 
     teamLeaderName: str = ""
     site: str = ""
-    # RTDB epoch ms; optional so extraction payloads need not set it.
-    startTime: Optional[int] = None
+    # RTDB epoch ms. Set ONLY when the volunteer states a concrete time/duration;
+    # otherwise left null (blank in the UI). The volunteer can also edit it manually.
+    startTime: Optional[int] = Field(
+        None,
+        description=(
+            "When the incident started, as epoch milliseconds. Only set this if the "
+            "volunteer states a concrete time or moment (e.g. 'we found him around "
+            "11:30 last night'); otherwise leave null."
+        ),
+    )
+    endTime: Optional[int] = Field(
+        None,
+        description=(
+            "When the incident ended, as epoch milliseconds. Only set this if the "
+            "volunteer states an end time or a duration (e.g. 'we were with her for "
+            "about 30 minutes'); otherwise leave null."
+        ),
+    )
     location: Location = Location()
     encounteredBy: EncounteredBy = EncounteredBy()
     otherServicesInvolved: OtherServicesInvolved = OtherServicesInvolved()

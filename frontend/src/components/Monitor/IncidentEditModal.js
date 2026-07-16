@@ -9,9 +9,20 @@ import {
     updateIncident,
 } from '../../services/api';
 import { persistTranscripts } from '../../services/persistTranscripts';
+import { validateIncidentForm } from '../../utils/validators/clientValidators';
 import { useAuth } from '../../context/AuthContext';
 import IncidentForm from '../forms/IncidentForm';
 import VoiceInput from '../VoiceInput';
+
+const EMPTY_ERRORS = { incident: {}, clients: [] };
+
+/** Scroll the first invalid field into view once the error classes render. */
+const scrollToFirstError = () => {
+    setTimeout(() => {
+        const el = document.querySelector('.field.error, .ui.form .error');
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+};
 
 const formatDate = (ms) => {
     if (!ms) return '';
@@ -120,6 +131,8 @@ const IncidentEditModal = ({
     const [voiceTranscript, setVoiceTranscript] = useState('');
     const [recordings, setRecordings] = useState([]); // [{ blob, text, durationMs, startedAt }]
     const [voicePersistError, setVoicePersistError] = useState(null);
+    const [errors, setErrors] = useState(EMPTY_ERRORS);
+    const [showErrors, setShowErrors] = useState(false);
 
     useEffect(() => {
         if (!open || !formId) {
@@ -131,6 +144,8 @@ const IncidentEditModal = ({
             setVoiceTranscript('');
             setRecordings([]);
             setVoicePersistError(null);
+            setShowErrors(false);
+            setErrors(EMPTY_ERRORS);
             return;
         }
         let cancelled = false;
@@ -144,6 +159,8 @@ const IncidentEditModal = ({
             setVoiceTranscript('');
             setRecordings([]);
             setVoicePersistError(null);
+            setShowErrors(false);
+            setErrors(EMPTY_ERRORS);
             try {
                 // Fetch incident first - if THAT fails, we abort.
                 const data = await fetchIncidentFull(formId);
@@ -184,6 +201,20 @@ const IncidentEditModal = ({
 
     const handleSaveEdit = async (status) => {
         if (!editFormData || !formId) return;
+
+        // "Save as Completed" enforces required fields; "Save as Draft" bypasses.
+        if (status === 'completed') {
+            const result = validateIncidentForm(editFormData);
+            if (result.hasErrors) {
+                setErrors(result);
+                setShowErrors(true);
+                scrollToFirstError();
+                return;
+            }
+        }
+        setShowErrors(false);
+        setErrors(EMPTY_ERRORS);
+
         setSaving(true);
         setEditError(null);
         setVoicePersistError(null);
@@ -346,6 +377,8 @@ const IncidentEditModal = ({
                             onChange={setEditFormData}
                             fieldOptions={incidentFieldOptions}
                             sites={sites}
+                            errors={errors}
+                            showErrors={showErrors}
                         />
                     </>
                 )}

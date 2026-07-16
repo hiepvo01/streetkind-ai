@@ -8,6 +8,7 @@ from .auth import get_current_uid
 from .config import get_sites, get_form_types, get_all_form_fields, get_app_config
 from .services.ai_extractor import extract_incident, extract_safebase
 from .services.firebase_client import push_incident_form, push_safebase_form
+from .services.incident_completeness import check_incident_complete
 from .schemas.combined_incident_schema import CombinedIncidentSchema
 from .schemas.safebase_schema import SafeBaseFormSchema
 from .schemas.transcript_schema import TranscriptSchema
@@ -219,6 +220,10 @@ def update_incident_route(form_id: str, req: UpdateIncidentRequest, caller_uid: 
     _check_incident_access(form_id, caller_uid)
 
     validated = CombinedIncidentSchema(**req.form_data)
+    if req.status == "completed":
+        errors = check_incident_complete(validated)
+        if errors:
+            raise HTTPException(status_code=422, detail=errors)
     update_incident(
         form_id,
         validated.model_dump(by_alias=True, exclude_none=True),
@@ -635,6 +640,18 @@ def submit_form(req: SubmitRequest, caller_uid: str = Depends(get_current_uid)):
 
     try:
         validated = schema_class(**req.form_data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Validation failed: {str(e)}")
+
+    # Enforce required fields only for a COMPLETED incident; drafts may be
+    # incomplete. This is the authoritative check (the frontend does the same
+    # for UX but can be bypassed by calling the API directly).
+    if req.form_type == "incident" and req.status == "completed":
+        errors = check_incident_complete(validated)
+        if errors:
+            raise HTTPException(status_code=422, detail=errors)
+
+    try:
         push_kwargs = {
             "data": validated.model_dump(by_alias=True, exclude_none=True),
             "user_uid": caller_uid,

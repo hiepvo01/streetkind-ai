@@ -7,7 +7,8 @@ export const createBlankClient = () => ({
     email: '',
     contactNumber: '',
     suburb: '',
-    alone: false,
+    // null = unanswered (required at submit). Distinct from false ("not alone").
+    alone: null,
     startTime: null,
     intoxicationSigns: { speech: false, balance: false, coordination: false, behaviour: false, notVisible: false },
     drugUseSigns: { observed: false, visibleSigns: false, disclosed: false, notVisible: false },
@@ -48,13 +49,15 @@ const zeroGenderAge = () => ({
 });
 
 export function createEmptyIncidentFormData(defaultSite = '') {
-    const now = Date.now();
     return {
         incident: {
             teamLeaderName: '',
             site: defaultSite || '',
             location: { address: '', latitude: null, longitude: null },
-            startTime: now,
+            // Blank by default; filled by AI only when a time is clearly stated,
+            // or entered manually by the volunteer.
+            startTime: null,
+            endTime: null,
             encounteredBy: {},
             otherServicesInvolved: {},
             quickNote: '',

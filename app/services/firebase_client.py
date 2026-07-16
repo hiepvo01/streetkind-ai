@@ -97,12 +97,14 @@ def push_incident_form(data: dict, user_uid: str, status: str = "completed") -> 
     ft = get_form_type_config("incident")
     now = int(time.time() * 1000)
 
-    # Write incident
+    # Write incident.
+    # startTime/endTime are intentionally NOT defaulted to `now`: they are only
+    # present in incident_data when the volunteer/AI actually set them (the submit
+    # path strips None via exclude_none). Leaving them absent keeps them blank in
+    # RTDB rather than silently equal to the creation time.
     incident_data.update({
         "createdBy": user_uid,
         "createdDate": now,
-        "startTime": incident_data.get("startTime", now),
-        "endTime": incident_data.get("endTime", now),
         "schemaName": ft["schema_name"],
         "schemaVersion": ft["schema_version"],
         "status": status,
